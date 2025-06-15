@@ -2,6 +2,7 @@ import { Calendar } from "lucide-react";
 import { cn } from "../utils";
 import { DateFilter } from "../types";
 import React from "react";
+import { useDrag } from "../contexts/drag-context";
 
 interface DateFilterColumnProps {
   dateFilters: DateFilter[];
@@ -132,6 +133,7 @@ function DateFilterItem({
   onDateFilterClick,
   onDateFilterDrop,
 }: DateFilterItemProps) {
+  const { currentDragData } = useDrag();
   const [isDragOver, setIsDragOver] = React.useState(false);
 
   // Get the target date for this filter
@@ -157,16 +159,19 @@ function DateFilterItem({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
 
-    try {
-      const data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-      if (data.type === "tasks" && data.taskIds && getTargetDate()) {
-        e.dataTransfer.dropEffect = "copy"; // Use copy icon to indicate date change
-        setIsDragOver(true);
-      } else {
-        e.dataTransfer.dropEffect = "none";
-      }
-    } catch {
+    if (!currentDragData || currentDragData.type !== "tasks") {
       e.dataTransfer.dropEffect = "none";
+      setIsDragOver(false);
+      return;
+    }
+
+    const targetDate = getTargetDate();
+    if (targetDate && currentDragData.taskIds.length > 0) {
+      e.dataTransfer.dropEffect = "copy"; // Use copy icon to indicate date change
+      setIsDragOver(true);
+    } else {
+      e.dataTransfer.dropEffect = "none";
+      setIsDragOver(false);
     }
   };
 
@@ -215,7 +220,7 @@ function DateFilterItem({
           ? "bg-neutral-100 dark:bg-neutral-800/50"
           : "hover:bg-neutral-50 dark:hover:bg-neutral-800/30",
         isDragOver &&
-          "ring-2 ring-green-400 dark:ring-green-500 bg-green-50/50 dark:bg-green-900/20"
+          "ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20"
       )}
     >
       <div
@@ -224,7 +229,7 @@ function DateFilterItem({
           isSelected
             ? "text-blue-600 dark:text-blue-400"
             : isDragOver
-            ? "text-green-600 dark:text-green-400"
+            ? "text-blue-600 dark:text-blue-400"
             : "text-neutral-400 dark:text-neutral-500"
         )}
       >
@@ -236,14 +241,13 @@ function DateFilterItem({
           isSelected
             ? "text-blue-900 dark:text-blue-100"
             : isDragOver
-            ? "text-green-800 dark:text-green-200"
+            ? "text-blue-800 dark:text-blue-200"
             : isFocused
             ? "text-neutral-800 dark:text-neutral-200"
             : "text-neutral-600 dark:text-neutral-400"
         )}
       >
         {filter.label}
-        {isDragOver && <span className="ml-2 text-xs">(Change date)</span>}
       </span>
     </div>
   );

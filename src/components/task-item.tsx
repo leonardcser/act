@@ -2,6 +2,7 @@ import React from "react";
 import { Folder } from "lucide-react";
 import { cn } from "../utils";
 import { Task } from "../types";
+import { useDrag } from "../contexts/drag-context";
 
 interface TaskItemProps {
   task: Task;
@@ -16,6 +17,9 @@ interface TaskItemProps {
   onTaskToggle: (taskId: string) => void;
   onTaskDrop: (draggedTaskIds: string[], targetTaskId: string) => void;
   getAllSubtasks: (taskId: string) => Task[];
+  onReorderDragOver?: (taskIndex: number, position: "above" | "below") => void;
+  taskIndex?: number;
+  isReorderDragActive?: boolean;
 }
 
 export function TaskItem({
@@ -30,7 +34,11 @@ export function TaskItem({
   onTaskToggle,
   onTaskDrop,
   getAllSubtasks,
+  onReorderDragOver,
+  taskIndex,
+  isReorderDragActive,
 }: TaskItemProps) {
+  const { currentDragData, setCurrentDragData } = useDrag();
   const [isEditing, setIsEditing] = React.useState(false);
   const [inputValue, setInputValue] = React.useState(task.name);
   const [isDragOver, setIsDragOver] = React.useState(false);
@@ -106,48 +114,106 @@ export function TaskItem({
       ? Array.from(selectedTasks)
       : [task.id];
 
-    e.dataTransfer.setData(
-      "text/plain",
-      JSON.stringify({
-        type: "tasks",
-        taskIds: tasksToDrag,
-        sourceColumnIndex: columnIndex,
-      })
-    );
+    const dragData = {
+      type: "tasks",
+      taskIds: tasksToDrag,
+      sourceColumnIndex: columnIndex,
+    };
+
+    // Store in context for access during drag over
+    setCurrentDragData(dragData);
+
+    e.dataTransfer.setData("text/plain", JSON.stringify(dragData));
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    // Clear context drag data when drag ends
+    setCurrentDragData(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent column from getting drag over events
 
-    try {
-      const data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
-      if (data.type === "tasks" && data.taskIds) {
-        // Check if we can drop here
-        const canDrop =
-          !data.taskIds.includes(task.id) &&
-          !data.taskIds.some((taskId: string) =>
-            wouldCreateCycle(taskId, task.id)
-          );
-
-        if (canDrop) {
-          e.dataTransfer.dropEffect = "move";
-          setIsDragOver(true);
-        } else {
-          e.dataTransfer.dropEffect = "none";
-        }
-      }
-    } catch {
+    if (!currentDragData || currentDragData.type !== "tasks") {
       e.dataTransfer.dropEffect = "none";
+      return;
     }
+
+    // Don't allow dropping on dragged tasks themselves
+    if (currentDragData.taskIds.includes(task.id)) {
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+
+    const isSameColumn = currentDragData.sourceColumnIndex === columnIndex;
+    const isCrossColumn = !isSameColumn;
+
+    // Check if this would create a cycle (for subtask creation)
+    const canDropAsSubtask = !currentDragData.taskIds.some((taskId: string) =>
+      wouldCreateCycle(taskId, task.id)
+    );
+
+    // Determine if we're hovering over the edges (for reordering) or center (for subtasks)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseY = e.clientY;
+    const taskTop = rect.top;
+    const taskBottom = rect.bottom;
+    const taskHeight = rect.height;
+    const edgeThreshold = Math.min(taskHeight * 0.25, 12); // 25% of task height or 12px, whichever is smaller
+
+    const isHoveringTopEdge = mouseY < taskTop + edgeThreshold;
+    const isHoveringBottomEdge = mouseY > taskBottom - edgeThreshold;
+    const isHoveringEdge = isHoveringTopEdge || isHoveringBottomEdge;
+
+    // MODE 1: Reordering (same-column OR cross-column) when hovering over task edges
+    if (
+      isHoveringEdge &&
+      onReorderDragOver &&
+      taskIndex !== undefined &&
+      (isReorderDragActive || isCrossColumn)
+    ) {
+      // Clear subtask drop indicator
+      setIsDragOver(false);
+
+      // Determine drop position based on which edge
+      const position: "above" | "below" = isHoveringTopEdge ? "above" : "below";
+      onReorderDragOver(taskIndex, position);
+      e.dataTransfer.dropEffect = "move";
+      return;
+    }
+
+    // MODE 2: Creating subtasks when hovering over center (or when reordering not available)
+    if (!isHoveringEdge || (!isReorderDragActive && isSameColumn)) {
+      // Clear reorder indicators if we have access to them
+      if (onReorderDragOver && (isReorderDragActive || isCrossColumn)) {
+        onReorderDragOver(-1, "above"); // Clear drop position by using invalid index
+      }
+
+      if (canDropAsSubtask) {
+        e.dataTransfer.dropEffect = "move";
+        setIsDragOver(true);
+      } else {
+        e.dataTransfer.dropEffect = "none";
+        setIsDragOver(false);
+      }
+      return;
+    }
+
+    // Default fallback
+    e.dataTransfer.dropEffect = "none";
+    setIsDragOver(false);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent column from getting drag enter events
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     // Only remove drag over state if we're actually leaving this element
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false);
@@ -156,12 +222,14 @@ export function TaskItem({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragOver(false);
 
     try {
       const data = JSON.parse(e.dataTransfer.getData("text/plain"));
       if (data.type === "tasks" && data.taskIds) {
+        // Handle subtask creation when dropping on a task
+        // (Reordering between tasks is handled by the column component)
+
         // Validate the drop
         const canDrop =
           !data.taskIds.includes(task.id) &&
@@ -170,11 +238,51 @@ export function TaskItem({
           );
 
         if (canDrop) {
-          onTaskDrop(data.taskIds, task.id);
+          const isSameColumn = data.sourceColumnIndex === columnIndex;
+          const isCrossColumn = !isSameColumn;
+
+          // Check if this is actually a reordering operation (edges) vs subtask creation (center)
+          if (
+            (isReorderDragActive || isCrossColumn) &&
+            onReorderDragOver &&
+            taskIndex !== undefined
+          ) {
+            // Determine drop position based on mouse position
+            const rect = e.currentTarget.getBoundingClientRect();
+            const mouseY = e.clientY;
+            const taskTop = rect.top;
+            const taskBottom = rect.bottom;
+            const taskHeight = rect.height;
+            const edgeThreshold = Math.min(taskHeight * 0.25, 12);
+
+            const isHoveringTopEdge = mouseY < taskTop + edgeThreshold;
+            const isHoveringBottomEdge = mouseY > taskBottom - edgeThreshold;
+            const isHoveringEdge = isHoveringTopEdge || isHoveringBottomEdge;
+
+            if (isHoveringEdge) {
+              // Dropped on edge - let column handle reordering by not stopping propagation
+              return;
+            } else {
+              // Dropped on center - create subtask and stop propagation
+              e.stopPropagation();
+              onTaskDrop(data.taskIds, task.id);
+            }
+          } else {
+            // Not in reorder mode or no reorder support - always create subtask
+            e.stopPropagation();
+            onTaskDrop(data.taskIds, task.id);
+          }
+        } else {
+          // Can't drop - stop propagation to prevent column from handling
+          e.stopPropagation();
         }
+      } else {
+        // Invalid data - stop propagation
+        e.stopPropagation();
       }
     } catch (error) {
       console.error("Failed to handle drop:", error);
+      e.stopPropagation();
     }
   };
 
@@ -182,13 +290,14 @@ export function TaskItem({
     <div
       draggable={!isEditing}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={(e) => onTaskClick(task, columnIndex, e)}
       className={cn(
-        "group flex items-center justify-between gap-2 p-3 transition-all duration-300 cursor-pointer",
+        "group flex items-center justify-between gap-2 p-3 transition-all duration-300 cursor-pointer relative",
         isCompleted
           ? isSelected
             ? "bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/40"
@@ -205,7 +314,7 @@ export function TaskItem({
         {subtaskCount > 0 ? (
           <div
             className={cn(
-              "transition-colors",
+              "transition-colors relative z-10",
               isCompleted
                 ? "text-green-500 dark:text-green-400"
                 : isSelected
@@ -221,7 +330,7 @@ export function TaskItem({
           <button
             onClick={handleCheckboxClick}
             className={cn(
-              "flex items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
+              "flex items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer relative z-10",
               isCompleted
                 ? "border-green-500 dark:border-green-400 text-white"
                 : isSelected
@@ -256,7 +365,7 @@ export function TaskItem({
             onBlur={handleInputBlur}
             onKeyDown={handleInputKeyDown}
             className={cn(
-              "flex-1 text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text",
+              "flex-1 text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text relative z-10",
               "ring-1 ring-blue-300 dark:ring-blue-600 rounded px-1 bg-white dark:bg-neutral-800"
             )}
           />
@@ -264,7 +373,7 @@ export function TaskItem({
           <span
             onClick={handleTaskNameClick}
             className={cn(
-              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none",
+              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10",
               isCompleted
                 ? isSelected
                   ? "line-through text-green-900 dark:text-green-100"
@@ -280,7 +389,7 @@ export function TaskItem({
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2 select-none">
+      <div className="flex items-center gap-2 select-none relative z-10">
         {subtaskCount > 0 && (
           <div
             className={cn(
