@@ -6,11 +6,6 @@ interface DragData {
   sourceColumnIndex: number;
 }
 
-interface DropPosition {
-  taskIndex: number;
-  position: "above" | "below";
-}
-
 interface DragContextType {
   currentDragData: DragData | null;
   setCurrentDragData: (data: DragData | null) => void;

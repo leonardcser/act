@@ -105,7 +105,6 @@ export function TaskColumn({
 
     // Check if we're hovering over the empty space at the bottom of the column
     const columnElement = e.currentTarget as HTMLElement;
-    const rect = columnElement.getBoundingClientRect();
     const mouseY = e.clientY;
 
     // Find the last task element to determine if we're below all tasks
