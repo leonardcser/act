@@ -8,6 +8,7 @@ interface TaskOperations {
   addTask: (name: string, parentId?: string) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
   deleteMultipleTasks: (taskIds: string[]) => Promise<void>;
+  reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;
 }
 
 interface UseKeyboardProps {
@@ -79,8 +80,8 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
           appState.columns[newColumnIndex]?.parentTaskId,
           appState.showCompleted
         );
-        const newTaskIndex = Math.min(0, newColumnTasks.length - 1);
-        appState.setFocusedTaskIndex(Math.max(0, newTaskIndex));
+        const newTaskIndex = 0;
+        appState.setFocusedTaskIndex(newTaskIndex);
 
         if (newColumnTasks.length > 0) {
           const focusedTask = newColumnTasks[newTaskIndex];
@@ -91,6 +92,90 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
       }
     },
     [taskOps.tasks, appState]
+  );
+
+  const reorderTaskVertical = useCallback(
+    async (direction: "up" | "down") => {
+      const focusedTask = getFocusedTask();
+      if (!focusedTask) return;
+
+      const currentColumn = appState.columns[appState.focusedColumn];
+      const columnTasks = TaskService.getTasksByParentId(
+        taskOps.tasks,
+        currentColumn?.parentTaskId,
+        appState.showCompleted
+      );
+
+      if (columnTasks.length <= 1) return;
+
+      const currentIndex = appState.focusedTaskIndex;
+      let targetIndex: number;
+
+      if (direction === "up") {
+        if (currentIndex === 0) return; // Already at top
+        targetIndex = currentIndex - 1;
+      } else {
+        if (currentIndex === columnTasks.length - 1) return; // Already at bottom
+        targetIndex = currentIndex + 1;
+      }
+
+      // Create new order by swapping positions
+      const reorderedTasks = [...columnTasks];
+      [reorderedTasks[currentIndex], reorderedTasks[targetIndex]] = [
+        reorderedTasks[targetIndex],
+        reorderedTasks[currentIndex],
+      ];
+
+      // Update task order in database
+      const taskIds = reorderedTasks.map((task) => task.id);
+      await taskOps.reorderTasks(taskIds, currentColumn?.parentTaskId);
+
+      // Update focus to follow the moved task
+      appState.setFocusedTaskIndex(targetIndex);
+      appState.selectTask(focusedTask.id, appState.focusedColumn, targetIndex);
+    },
+    [getFocusedTask, taskOps, appState]
+  );
+
+  const reorderTaskHorizontal = useCallback(
+    async (direction: "left" | "right") => {
+      const focusedTask = getFocusedTask();
+      if (!focusedTask) return;
+
+      let targetColumnIndex: number;
+      if (direction === "left") {
+        if (appState.focusedColumn === 0) return; // Already in leftmost column
+        targetColumnIndex = appState.focusedColumn - 1;
+      } else {
+        if (appState.focusedColumn === appState.columns.length - 1) return; // Already in rightmost column
+        targetColumnIndex = appState.focusedColumn + 1;
+      }
+
+      const targetColumn = appState.columns[targetColumnIndex];
+      const targetColumnTasks = TaskService.getTasksByParentId(
+        taskOps.tasks,
+        targetColumn?.parentTaskId,
+        appState.showCompleted
+      );
+
+      // Create new order for target column with the moved task at the end
+      const newTaskIds = [
+        ...targetColumnTasks.map((task) => task.id),
+        focusedTask.id,
+      ];
+
+      // Update the task's parent_id by removing from current column and adding to target column
+      // This is a bit complex as we need to update the task's parent_id first
+      // For now, we'll just move the task within the same parent (reorder within column)
+      // To move between columns, we'd need to update the task's parent_id
+
+      // For this implementation, let's focus on vertical reordering within columns
+      // and leave horizontal movement as navigation only
+      console.warn(
+        "Horizontal task reordering between columns not yet implemented"
+      );
+    },
+    [getFocusedTask, taskOps, appState]
   );
 
   const deleteSelectedTasks = useCallback(async () => {
@@ -181,7 +266,28 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
         return;
       }
 
-      // Navigation keys
+      // Task reordering with Shift + navigation keys
+      if (e.shiftKey) {
+        if (e.key === "ArrowUp" || e.key === "K") {
+          e.preventDefault();
+          reorderTaskVertical("up");
+          return;
+        } else if (e.key === "ArrowDown" || e.key === "J") {
+          e.preventDefault();
+          reorderTaskVertical("down");
+          return;
+        } else if (e.key === "ArrowLeft" || e.key === "H") {
+          e.preventDefault();
+          reorderTaskHorizontal("left");
+          return;
+        } else if (e.key === "ArrowRight" || e.key === "L") {
+          e.preventDefault();
+          reorderTaskHorizontal("right");
+          return;
+        }
+      }
+
+      // Regular navigation keys (without Shift)
       if (e.key === "ArrowUp" || e.key === "k") {
         e.preventDefault();
         navigateVertical("up");
@@ -210,7 +316,14 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
         e.preventDefault();
         const focusedTask = getFocusedTask();
         if (focusedTask) {
+          const currentColumn = appState.focusedColumn;
+          const currentTaskIndex = appState.focusedTaskIndex;
+
           appState.openSubtasks(focusedTask, appState.focusedColumn);
+
+          // Maintain focus on the current task, not the new subtasks column
+          appState.setFocusedColumn(currentColumn);
+          appState.setFocusedTaskIndex(currentTaskIndex);
         }
       }
     };
@@ -226,6 +339,8 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
     getFocusedTask,
     navigateVertical,
     navigateHorizontal,
+    reorderTaskVertical,
+    reorderTaskHorizontal,
     deleteSelectedTasks,
     selectAllTasksInColumn,
     addTask,

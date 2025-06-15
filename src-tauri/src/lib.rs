@@ -8,7 +8,13 @@ pub fn run() {
             description: "create_tasks_table",
             sql: include_str!("../migrations/001_initial.sql"),
             kind: MigrationKind::Up,
-        }
+        },
+        Migration {
+            version: 2,
+            description: "add_order_column",
+            sql: include_str!("../migrations/002_add_order.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     // Determine the database path before building the app

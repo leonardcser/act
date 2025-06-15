@@ -5,6 +5,7 @@ export interface Task {
   completed: boolean;
   completedAt?: Date;
   dateCreated: Date;
+  order: number;
 }
 
 export interface Column {

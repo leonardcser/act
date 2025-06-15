@@ -18,6 +18,7 @@ function App() {
       addTask: taskManager.addTask,
       toggleTask: taskManager.toggleTask,
       deleteMultipleTasks: taskManager.deleteMultipleTasks,
+      reorderTasks: taskManager.reorderTasks,
     },
   });
 
@@ -60,6 +61,10 @@ function App() {
         e.stopPropagation();
         taskManager.appState.selectTask(task.id, columnIndex, taskIndex);
         taskManager.appState.openSubtasks(task, columnIndex);
+
+        // Maintain focus on the clicked task, not the new subtasks column
+        taskManager.appState.setFocusedColumn(columnIndex);
+        taskManager.appState.setFocusedTaskIndex(taskIndex);
 
         // Scroll to show new column
         setTimeout(() => {
