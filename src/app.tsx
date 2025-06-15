@@ -116,6 +116,21 @@ function App() {
     [taskManager]
   );
 
+  const handleDateFilterDrop = useCallback(
+    async (draggedTaskIds: string[], targetDate: Date) => {
+      try {
+        // Update the dates for all dragged tasks and their subtasks
+        await taskManager.updateMultipleTasksDates(draggedTaskIds, targetDate);
+
+        // Clear selection after successful drop
+        taskManager.appState.setSelectedTasks(new Set());
+      } catch (error) {
+        console.error("Failed to update task dates:", error);
+      }
+    },
+    [taskManager]
+  );
+
   const handleTaskUpdate = useCallback(
     (task: Task, newName: string) => {
       taskManager.updateTaskName(task.id, newName);
@@ -252,6 +267,7 @@ function App() {
           selectedDateFilter={taskManager.selectedDateFilter}
           focusedDateIndex={taskManager.appState.focusedDateIndex}
           onDateFilterClick={handleDateFilterClick}
+          onDateFilterDrop={handleDateFilterDrop}
         />
       </div>
 

@@ -34,6 +34,8 @@ export interface UseTaskManagerReturn {
     taskIds: string[],
     newParentId?: string
   ) => Promise<void>;
+  updateTaskDate: (taskId: string, newDate: Date) => Promise<void>;
+  updateMultipleTasksDates: (taskIds: string[], newDate: Date) => Promise<void>;
 }
 
 export const useTaskManager = (): UseTaskManagerReturn => {
@@ -136,6 +138,24 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     [tasks]
   );
 
+  const updateTaskDate = useCallback(
+    async (taskId: string, newDate: Date) => {
+      await TaskService.updateTaskDate(taskId, newDate);
+      // Refresh tasks to get updated date
+      await tasks.loadTasks(tasks.selectedDateFilter);
+    },
+    [tasks]
+  );
+
+  const updateMultipleTasksDates = useCallback(
+    async (taskIds: string[], newDate: Date) => {
+      await TaskService.updateMultipleTasksDates(taskIds, newDate);
+      // Refresh tasks to get updated dates
+      await tasks.loadTasks(tasks.selectedDateFilter);
+    },
+    [tasks]
+  );
+
   return {
     // Task data
     tasks: tasks.tasks,
@@ -163,5 +183,7 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     reorderTasks,
     moveTaskToParent,
     moveMultipleTasksToParent,
+    updateTaskDate,
+    updateMultipleTasksDates,
   };
 };

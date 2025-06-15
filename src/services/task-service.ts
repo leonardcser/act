@@ -442,4 +442,71 @@ export class TaskService {
   static generateDateFilters(tasks: Task[]): DateFilter[] {
     return generateDateFilters(tasks);
   }
+
+  static async updateTaskDate(taskId: string, newDate: Date): Promise<void> {
+    const database = await DatabaseService.getConnection();
+    const dateStr = newDate.toISOString();
+
+    // Update the task's date
+    await database.execute("UPDATE tasks SET date_created = $1 WHERE id = $2", [
+      dateStr,
+      taskId,
+    ]);
+
+    // Get all subtasks recursively and update their dates too
+    const allSubtasks = await this.getAllSubtasksRecursive(taskId);
+
+    for (const subtask of allSubtasks) {
+      await database.execute(
+        "UPDATE tasks SET date_created = $1 WHERE id = $2",
+        [dateStr, subtask.id]
+      );
+    }
+  }
+
+  static async updateMultipleTasksDates(
+    taskIds: string[],
+    newDate: Date
+  ): Promise<void> {
+    const database = await DatabaseService.getConnection();
+    const dateStr = newDate.toISOString();
+
+    // Update all specified tasks
+    for (const taskId of taskIds) {
+      await database.execute(
+        "UPDATE tasks SET date_created = $1 WHERE id = $2",
+        [dateStr, taskId]
+      );
+
+      // Get all subtasks recursively and update their dates too
+      const allSubtasks = await this.getAllSubtasksRecursive(taskId);
+
+      for (const subtask of allSubtasks) {
+        await database.execute(
+          "UPDATE tasks SET date_created = $1 WHERE id = $2",
+          [dateStr, subtask.id]
+        );
+      }
+    }
+  }
+
+  private static async getAllSubtasksRecursive(
+    taskId: string
+  ): Promise<DatabaseTask[]> {
+    const database = await DatabaseService.getConnection();
+    const directSubtasks = (await database.select(
+      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks WHERE parent_id = $1",
+      [taskId]
+    )) as DatabaseTask[];
+
+    const allSubtasks = [...directSubtasks];
+
+    // Recursively get subtasks of subtasks
+    for (const subtask of directSubtasks) {
+      const nestedSubtasks = await this.getAllSubtasksRecursive(subtask.id);
+      allSubtasks.push(...nestedSubtasks);
+    }
+
+    return allSubtasks;
+  }
 }
