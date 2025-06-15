@@ -248,31 +248,37 @@ export function TaskItem({
             )}
           </button>
         )}
-        <input
-          ref={inputRef}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onBlur={handleInputBlur}
-          onKeyDown={handleInputKeyDown}
-          onClick={handleTaskNameClick}
-          size={isEditing ? undefined : Math.max(inputValue.length + 1, 1)}
-          className={cn(
-            "text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text",
-            isEditing ? "flex-1" : "select-none w-fit",
-            isCompleted
-              ? isSelected
-                ? "line-through text-green-900 dark:text-green-100"
-                : "line-through text-neutral-500 dark:text-neutral-400"
-              : isSelected
-              ? "text-blue-900 dark:text-blue-100"
-              : isOpen
-              ? "text-neutral-800 dark:text-neutral-200"
-              : "text-neutral-400 dark:text-neutral-500",
-            isEditing &&
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className={cn(
+              "flex-1 text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text",
               "ring-1 ring-blue-300 dark:ring-blue-600 rounded px-1 bg-white dark:bg-neutral-800"
-          )}
-          readOnly={!isEditing}
-        />
+            )}
+          />
+        ) : (
+          <span
+            onClick={handleTaskNameClick}
+            className={cn(
+              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none",
+              isCompleted
+                ? isSelected
+                  ? "line-through text-green-900 dark:text-green-100"
+                  : "line-through text-neutral-500 dark:text-neutral-400"
+                : isSelected
+                ? "text-blue-900 dark:text-blue-100"
+                : isOpen
+                ? "text-neutral-800 dark:text-neutral-200"
+                : "text-neutral-400 dark:text-neutral-500"
+            )}
+          >
+            {task.name}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2 select-none">
         {subtaskCount > 0 && (
@@ -291,9 +297,6 @@ export function TaskItem({
             <span>{subtaskCount}</span>
           </div>
         )}
-        {/* {isCompleted && (
-          <div className="text-green-500 dark:text-green-400 text-xs">✓</div>
-        )} */}
       </div>
     </div>
   );
