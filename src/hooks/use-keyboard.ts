@@ -1,11 +1,12 @@
 import { useEffect, useCallback } from "react";
-import { Task } from "../types";
+import { Task, DateFilter } from "../types";
 import { TaskService } from "../services/task-service";
 import { UseAppStateReturn } from "./use-app-state";
+import { getDateFromFilter } from "../utils/date";
 
 interface TaskOperations {
   tasks: Task[];
-  addTask: (name: string, parentId?: string) => Promise<void>;
+  addTask: (name: string, parentId?: string, date?: Date) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
   deleteTasks: (taskIds: string | string[]) => Promise<void>;
   reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;
@@ -18,9 +19,14 @@ interface TaskOperations {
 interface UseKeyboardProps {
   appState: UseAppStateReturn;
   taskOps: TaskOperations;
+  selectedDateFilter?: DateFilter;
 }
 
-export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
+export const useKeyboard = ({
+  appState,
+  taskOps,
+  selectedDateFilter,
+}: UseKeyboardProps) => {
   const getFocusedTask = useCallback((): Task | null => {
     const columnTasks = TaskService.getTasksByParentId(
       taskOps.tasks,
@@ -237,9 +243,12 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
       parentTaskId = appState.columns[appState.selectedColumn]?.parentTaskId;
     }
 
-    taskOps.addTask(appState.newTaskName, parentTaskId);
+    // Get date from selected filter
+    const taskDate = getDateFromFilter(selectedDateFilter);
+
+    taskOps.addTask(appState.newTaskName, parentTaskId, taskDate);
     appState.closeModal();
-  }, [appState, taskOps]);
+  }, [appState, taskOps, selectedDateFilter]);
 
   // Keyboard event handlers
   useEffect(() => {

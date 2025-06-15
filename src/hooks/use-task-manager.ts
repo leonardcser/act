@@ -25,7 +25,7 @@ export interface UseTaskManagerReturn {
   updateTaskName: (taskId: string, newName: string) => void;
   setSelectedDateFilter: (filter?: DateFilter) => void;
   loadTasks: (dateFilter?: DateFilter) => Promise<void>;
-  addTask: (name: string, parentId?: string) => Promise<void>;
+  addTask: (name: string, parentId?: string, date?: Date) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
   deleteTasks: (taskIds: string | string[]) => Promise<void>;
   reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;

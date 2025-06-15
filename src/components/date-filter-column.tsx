@@ -19,11 +19,13 @@ export function DateFilterColumn({
   onDateFilterDrop,
 }: DateFilterColumnProps) {
   const todayFilter = dateFilters.find((f) => f.type === "today");
+  const tomorrowFilter = dateFilters.find((f) => f.type === "tomorrow");
   const yesterdayFilter = dateFilters.find((f) => f.type === "yesterday");
   const historicalFilters = dateFilters.filter((f) => f.type === "date");
 
   const allFilterItems = [
     ...(todayFilter ? [todayFilter] : []),
+    ...(tomorrowFilter ? [tomorrowFilter] : []),
     ...(yesterdayFilter ? [yesterdayFilter] : []),
     ...historicalFilters,
   ];
@@ -31,7 +33,7 @@ export function DateFilterColumn({
   return (
     <div className="flex-shrink-0 w-48 bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
-        {/* Today and Yesterday */}
+        {/* Today and Tomorrow */}
         <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
           {todayFilter && (
             <DateFilterItem
@@ -43,11 +45,11 @@ export function DateFilterColumn({
               onDateFilterDrop={onDateFilterDrop}
             />
           )}
-          {yesterdayFilter && (
+          {tomorrowFilter && (
             <DateFilterItem
-              filter={yesterdayFilter}
+              filter={tomorrowFilter}
               index={1}
-              isSelected={selectedDateFilter?.type === "yesterday"}
+              isSelected={selectedDateFilter?.type === "tomorrow"}
               isFocused={focusedDateIndex === 1}
               onDateFilterClick={onDateFilterClick}
               onDateFilterDrop={onDateFilterDrop}
@@ -56,15 +58,31 @@ export function DateFilterColumn({
         </div>
 
         {/* Divider */}
-        {historicalFilters.length > 0 && (
-          <div className="border-t-2 border-neutral-200 dark:border-neutral-700 my-2" />
+        {(yesterdayFilter || historicalFilters.length > 0) && (
+          <div className="border-t-2 border-neutral-200 dark:border-neutral-700" />
         )}
 
-        {/* Historical dates */}
+        {/* Yesterday and Historical dates */}
         <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+          {yesterdayFilter && (
+            <DateFilterItem
+              filter={yesterdayFilter}
+              index={(todayFilter ? 1 : 0) + (tomorrowFilter ? 1 : 0)}
+              isSelected={selectedDateFilter?.type === "yesterday"}
+              isFocused={
+                focusedDateIndex ===
+                (todayFilter ? 1 : 0) + (tomorrowFilter ? 1 : 0)
+              }
+              onDateFilterClick={onDateFilterClick}
+              onDateFilterDrop={onDateFilterDrop}
+            />
+          )}
           {historicalFilters.map((filter, histIndex) => {
             const globalIndex =
-              (todayFilter ? 1 : 0) + (yesterdayFilter ? 1 : 0) + histIndex;
+              (todayFilter ? 1 : 0) +
+              (tomorrowFilter ? 1 : 0) +
+              (yesterdayFilter ? 1 : 0) +
+              histIndex;
             return (
               <DateFilterItem
                 key={
@@ -121,6 +139,10 @@ function DateFilterItem({
     switch (filter.type) {
       case "today":
         return new Date();
+      case "tomorrow":
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow;
       case "yesterday":
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);

@@ -10,6 +10,17 @@ export const isToday = (date: Date): boolean => {
   );
 };
 
+// Check if a date is tomorrow
+export const isTomorrow = (date: Date): boolean => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return (
+    date.getDate() === tomorrow.getDate() &&
+    date.getMonth() === tomorrow.getMonth() &&
+    date.getFullYear() === tomorrow.getFullYear()
+  );
+};
+
 // Check if a date is yesterday
 export const isYesterday = (date: Date): boolean => {
   const yesterday = new Date();
@@ -58,28 +69,41 @@ export const getTaskDates = (tasks: Task[]): Date[] => {
 export const generateDateFilters = (tasks: Task[]): DateFilter[] => {
   const filters: DateFilter[] = [];
   const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // Add Today filter
+  // Always add Today filter
   filters.push({
     type: "today",
     date: today,
     label: "Today",
   });
 
-  // Add Yesterday filter
+  // Always add Tomorrow filter
   filters.push({
-    type: "yesterday",
-    date: yesterday,
-    label: "Yesterday",
+    type: "tomorrow",
+    date: tomorrow,
+    label: "Tomorrow",
   });
 
-  // Get all unique dates and add historical filters
+  // Get all unique dates from tasks
   const uniqueDates = getTaskDates(tasks);
 
+  // Add Yesterday filter only if there are tasks for yesterday
+  const hasYesterdayTasks = uniqueDates.some((date) => isYesterday(date));
+  if (hasYesterdayTasks) {
+    filters.push({
+      type: "yesterday",
+      date: yesterday,
+      label: "Yesterday",
+    });
+  }
+
+  // Add historical filters for other dates
   uniqueDates.forEach((date) => {
-    if (!isToday(date) && !isYesterday(date)) {
+    if (!isToday(date) && !isTomorrow(date) && !isYesterday(date)) {
       filters.push({
         type: "date",
         date,
@@ -89,4 +113,29 @@ export const generateDateFilters = (tasks: Task[]): DateFilter[] => {
   });
 
   return filters;
+};
+
+// Get a Date object from a DateFilter
+export const getDateFromFilter = (filter?: DateFilter): Date | undefined => {
+  if (!filter) return undefined;
+
+  const today = new Date();
+  switch (filter.type) {
+    case "today":
+      return today;
+    case "tomorrow":
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    case "yesterday":
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return yesterday;
+    case "date":
+      return filter.date;
+    case "range":
+      return filter.startDate; // Use start date for range filters
+    default:
+      return undefined;
+  }
 };

@@ -124,6 +124,11 @@ export class TaskService {
         case "today":
           dbTasks = await this.getTodaysTasks();
           break;
+        case "tomorrow":
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          dbTasks = await this.getTasksForDate(tomorrow);
+          break;
         case "yesterday":
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
@@ -154,9 +159,13 @@ export class TaskService {
     return this.sortTasks(convertedTasks);
   }
 
-  static async createTask(name: string, parentId?: string): Promise<Task> {
+  static async createTask(
+    name: string,
+    parentId?: string,
+    date?: Date
+  ): Promise<Task> {
     const database = await DatabaseService.getConnection();
-    const now = new Date().toISOString();
+    const taskDate = date ? date.toISOString() : new Date().toISOString();
     const id = uuidv4();
 
     // Get the next order number for this parent
@@ -171,7 +180,7 @@ export class TaskService {
       parent_id: parentId,
       completed: 0,
       completed_at: undefined,
-      date_created: now,
+      date_created: taskDate,
       task_order: max_order + 1,
     };
 

@@ -9,7 +9,7 @@ export interface UseTasksReturn {
   loading: boolean;
   error: string | null;
   setSelectedDateFilter: (filter?: DateFilter) => void;
-  addTask: (name: string, parentId?: string) => Promise<void>;
+  addTask: (name: string, parentId?: string, date?: Date) => Promise<void>;
   updateTask: (id: string, name: string) => Promise<void>;
   deleteTasks: (taskIds: string | string[]) => Promise<void>;
   toggleTask: (id: string) => Promise<void>;
@@ -41,9 +41,9 @@ export const useTasks = (): UseTasksReturn => {
   }, []);
 
   const addTask = useCallback(
-    async (name: string, parentId?: string) => {
+    async (name: string, parentId?: string, date?: Date) => {
       try {
-        await TaskService.createTask(name, parentId);
+        await TaskService.createTask(name, parentId, date);
         // Reload tasks to get updated parent completion states
         await loadTasks(selectedDateFilter);
       } catch (err) {

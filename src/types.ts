@@ -14,7 +14,7 @@ export interface Column {
 }
 
 export interface DateFilter {
-  type: "today" | "yesterday" | "date" | "range";
+  type: "today" | "tomorrow" | "yesterday" | "date" | "range";
   date?: Date;
   startDate?: Date;
   endDate?: Date;

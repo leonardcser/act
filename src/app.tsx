@@ -6,6 +6,7 @@ import { TaskColumn } from "./components/task-column";
 import { ActionBar } from "./components/action-bar";
 import { DateFilterColumn } from "./components/date-filter-column";
 import { Task, DateFilter } from "./types";
+import { getDateFromFilter } from "./utils/date";
 
 function App() {
   const taskManager = useTaskManager();
@@ -21,6 +22,7 @@ function App() {
       reorderTasks: taskManager.reorderTasks,
       moveTasksToParent: taskManager.moveTasksToParent,
     },
+    selectedDateFilter: taskManager.selectedDateFilter,
   });
 
   // Event handlers
@@ -323,7 +325,14 @@ function App() {
                 ?.parentTaskId;
           }
 
-          taskManager.addTask(taskManager.appState.newTaskName, parentTaskId);
+          // Get date from selected filter
+          const taskDate = getDateFromFilter(taskManager.selectedDateFilter);
+
+          taskManager.addTask(
+            taskManager.appState.newTaskName,
+            parentTaskId,
+            taskDate
+          );
           taskManager.appState.closeModal();
         }}
         onClose={taskManager.appState.closeModal}
