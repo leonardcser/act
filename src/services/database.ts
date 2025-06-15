@@ -1,5 +1,6 @@
 import Database from "@tauri-apps/plugin-sql";
 import { v4 as uuidv4 } from "uuid";
+import { homeDir } from "@tauri-apps/api/path";
 
 export interface DatabaseTask {
   id: string;
@@ -14,7 +15,9 @@ let db: Database | null = null;
 
 async function getDatabase(): Promise<Database> {
   if (!db) {
-    db = await Database.load("sqlite:act.db");
+    const home = await homeDir();
+    const dbPath = `${home}/.act/act.db`;
+    db = await Database.load(`sqlite:${dbPath}`);
   }
   return db;
 }
