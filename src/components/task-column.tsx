@@ -16,6 +16,7 @@ interface TaskColumnProps {
   onColumnClick: (columnIndex: number, e: React.MouseEvent) => void;
   onTaskClick: (task: Task, columnIndex: number, e: React.MouseEvent) => void;
   onTaskUpdate: (task: Task, newName: string) => void;
+  onTaskToggle: (taskId: string) => void;
   onTaskDrop: (draggedTaskIds: string[], targetTaskId: string) => void;
   onColumnDrop: (draggedTaskIds: string[], targetColumnIndex: number) => void;
 }
@@ -32,6 +33,7 @@ export function TaskColumn({
   onColumnClick,
   onTaskClick,
   onTaskUpdate,
+  onTaskToggle,
   onTaskDrop,
   onColumnDrop,
 }: TaskColumnProps) {
@@ -170,6 +172,7 @@ export function TaskColumn({
             openTaskIds={openTaskIds}
             onTaskClick={onTaskClick}
             onTaskUpdate={onTaskUpdate}
+            onTaskToggle={onTaskToggle}
             onTaskDrop={onTaskDrop}
             getAllSubtasks={getAllSubtasks}
           />

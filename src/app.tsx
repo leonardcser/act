@@ -295,6 +295,7 @@ function App() {
                 onColumnClick={handleColumnClick}
                 onTaskClick={handleTaskClick}
                 onTaskUpdate={handleTaskUpdate}
+                onTaskToggle={taskManager.toggleTask}
                 onTaskDrop={handleTaskDrop}
                 onColumnDrop={handleColumnDrop}
               />

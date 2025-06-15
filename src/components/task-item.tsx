@@ -13,6 +13,7 @@ interface TaskItemProps {
   openTaskIds: Set<string>;
   onTaskClick: (task: Task, columnIndex: number, e: React.MouseEvent) => void;
   onTaskUpdate: (task: Task, newName: string) => void;
+  onTaskToggle: (taskId: string) => void;
   onTaskDrop: (draggedTaskIds: string[], targetTaskId: string) => void;
   getAllSubtasks: (taskId: string) => Task[];
 }
@@ -26,6 +27,7 @@ export function TaskItem({
   selectedTasks,
   onTaskClick,
   onTaskUpdate,
+  onTaskToggle,
   onTaskDrop,
   getAllSubtasks,
 }: TaskItemProps) {
@@ -71,7 +73,13 @@ export function TaskItem({
 
   const handleTaskNameClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    onTaskClick(task, columnIndex, e);
     setIsEditing(true);
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onTaskToggle(task.id);
   };
 
   // Check if dragging a task to target would create a cycle
@@ -194,20 +202,52 @@ export function TaskItem({
       )}
     >
       <div className={cn("flex items-center gap-3", isEditing && "flex-1")}>
-        <div
-          className={cn(
-            "transition-colors",
-            isCompleted
-              ? "text-green-500 dark:text-green-400"
-              : isSelected
-              ? "text-blue-600 dark:text-blue-400"
-              : isOpen
-              ? "text-neutral-400 dark:text-neutral-500"
-              : "text-neutral-200 dark:text-neutral-600"
-          )}
-        >
-          <Folder size={16} />
-        </div>
+        {subtaskCount > 0 ? (
+          <div
+            className={cn(
+              "transition-colors",
+              isCompleted
+                ? "text-green-500 dark:text-green-400"
+                : isSelected
+                ? "text-blue-600 dark:text-blue-400"
+                : isOpen
+                ? "text-neutral-400 dark:text-neutral-500"
+                : "text-neutral-200 dark:text-neutral-600"
+            )}
+          >
+            <Folder size={16} />
+          </div>
+        ) : (
+          <button
+            onClick={handleCheckboxClick}
+            className={cn(
+              "flex items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
+              isCompleted
+                ? "border-green-500 dark:border-green-400 text-white"
+                : isSelected
+                ? "border-blue-600 dark:border-blue-400 hover:border-blue-700 dark:hover:border-blue-300"
+                : "border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500"
+            )}
+          >
+            {isCompleted && (
+              <svg
+                width="10"
+                height="8"
+                viewBox="0 0 10 8"
+                fill="none"
+                className="text-green-500 dark:text-green-400"
+              >
+                <path
+                  d="M9 1L3.5 6.5L1 4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </button>
+        )}
         <input
           ref={inputRef}
           value={inputValue}
@@ -251,9 +291,9 @@ export function TaskItem({
             <span>{subtaskCount}</span>
           </div>
         )}
-        {isCompleted && (
+        {/* {isCompleted && (
           <div className="text-green-500 dark:text-green-400 text-xs">✓</div>
-        )}
+        )} */}
       </div>
     </div>
   );
