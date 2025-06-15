@@ -133,7 +133,7 @@ function DateFilterItem({
   onDateFilterClick,
   onDateFilterDrop,
 }: DateFilterItemProps) {
-  const { currentDragData } = useDrag();
+  const { currentDragData, getDropEffect } = useDrag();
   const [isDragOver, setIsDragOver] = React.useState(false);
 
   // Get the target date for this filter
@@ -166,8 +166,10 @@ function DateFilterItem({
     }
 
     const targetDate = getTargetDate();
-    if (targetDate && currentDragData.taskIds.length > 0) {
-      e.dataTransfer.dropEffect = "copy"; // Use copy icon to indicate date change
+    const canDrop = targetDate && currentDragData.taskIds.length > 0;
+
+    if (canDrop) {
+      e.dataTransfer.dropEffect = getDropEffect(false, true); // false = cross-column (date filter)
       setIsDragOver(true);
     } else {
       e.dataTransfer.dropEffect = "none";

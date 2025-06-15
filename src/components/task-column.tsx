@@ -43,7 +43,7 @@ export function TaskColumn({
   onColumnDrop,
   onTaskReorder,
 }: TaskColumnProps) {
-  const { currentDragData } = useDrag();
+  const { currentDragData, canDropInColumn, getDropEffect } = useDrag();
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [isReorderDragActive, setIsReorderDragActive] = React.useState(false);
   const [dropPosition, setDropPosition] = React.useState<{
@@ -82,26 +82,6 @@ export function TaskColumn({
     return openIds;
   }, [tasks, isTaskOpen, getAllSubtasks]);
 
-  // Check if dropping tasks into this column would create a cycle
-  const wouldCreateCycleInColumn = (draggedTaskIds: string[]): boolean => {
-    // If this column represents subtasks of a task, check for cycles
-    if (column.parentTaskId) {
-      return draggedTaskIds.some((draggedTaskId) => {
-        // Direct cycle: dragging a task into its own subtask column
-        if (draggedTaskId === column.parentTaskId) {
-          return true;
-        }
-
-        // Indirect cycle: check if the column's parent would become a descendant of the dragged task
-        const allSubtasks = getAllSubtasks(draggedTaskId);
-        return allSubtasks.some(
-          (subtask) => subtask.id === column.parentTaskId
-        );
-      });
-    }
-    return false;
-  };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
 
@@ -111,48 +91,42 @@ export function TaskColumn({
     }
 
     const isSameColumn = currentDragData.sourceColumnIndex === columnIndex;
-    const isCrossColumn = !isSameColumn;
+    const canDrop = canDropInColumn(column.parentTaskId, getAllSubtasks);
 
-    // For both same-column and cross-column, we want to support positioning
-    if (isSameColumn || isCrossColumn) {
-      // Check if we can drop here (for cross-column, check cycles)
-      if (isCrossColumn) {
-        const canDrop = !wouldCreateCycleInColumn(currentDragData.taskIds);
-        if (!canDrop) {
-          e.dataTransfer.dropEffect = "none";
-          return;
-        }
-        setIsDragOver(true);
-      }
-
-      // Check if we're hovering over the empty space at the bottom of the column
-      const columnElement = e.currentTarget as HTMLElement;
-      const rect = columnElement.getBoundingClientRect();
-      const mouseY = e.clientY;
-
-      // Find the last task element to determine if we're below all tasks
-      const taskElements = columnElement.querySelectorAll("[data-task-item]");
-      if (taskElements.length > 0 && tasks.length > 0) {
-        const lastTaskElement = taskElements[taskElements.length - 1];
-        const lastTaskRect = lastTaskElement.getBoundingClientRect();
-
-        // If mouse is below the last task, set drop position to after the last task
-        if (mouseY > lastTaskRect.bottom) {
-          if (
-            !dropPosition ||
-            dropPosition.taskIndex !== tasks.length - 1 ||
-            dropPosition.position !== "below"
-          ) {
-            setDropPosition({ taskIndex: tasks.length - 1, position: "below" });
-          }
-        }
-      }
-
-      e.dataTransfer.dropEffect = "move";
+    if (!canDrop) {
+      e.dataTransfer.dropEffect = "none";
       return;
     }
 
-    e.dataTransfer.dropEffect = "none";
+    // Set drag over state for cross-column drops
+    if (!isSameColumn) {
+      setIsDragOver(true);
+    }
+
+    // Check if we're hovering over the empty space at the bottom of the column
+    const columnElement = e.currentTarget as HTMLElement;
+    const rect = columnElement.getBoundingClientRect();
+    const mouseY = e.clientY;
+
+    // Find the last task element to determine if we're below all tasks
+    const taskElements = columnElement.querySelectorAll("[data-task-item]");
+    if (taskElements.length > 0 && tasks.length > 0) {
+      const lastTaskElement = taskElements[taskElements.length - 1];
+      const lastTaskRect = lastTaskElement.getBoundingClientRect();
+
+      // If mouse is below the last task, set drop position to after the last task
+      if (mouseY > lastTaskRect.bottom) {
+        if (
+          !dropPosition ||
+          dropPosition.taskIndex !== tasks.length - 1 ||
+          dropPosition.position !== "below"
+        ) {
+          setDropPosition({ taskIndex: tasks.length - 1, position: "below" });
+        }
+      }
+    }
+
+    e.dataTransfer.dropEffect = getDropEffect(isSameColumn, true);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -181,6 +155,12 @@ export function TaskColumn({
         data.taskIds &&
         Array.isArray(data.taskIds)
       ) {
+        const canDrop = canDropInColumn(column.parentTaskId, getAllSubtasks);
+
+        if (!canDrop) {
+          return;
+        }
+
         // Handle same-column reordering
         if (data.sourceColumnIndex === columnIndex && dropPosition) {
           let targetIndex = dropPosition.taskIndex;
@@ -191,21 +171,17 @@ export function TaskColumn({
         }
         // Handle cross-column drops with positioning
         else if (data.sourceColumnIndex !== columnIndex) {
-          const canDrop = !wouldCreateCycleInColumn(data.taskIds);
-
-          if (canDrop) {
-            if (dropPosition) {
-              // Cross-column drop with specific position
-              let targetIndex = dropPosition.taskIndex;
-              if (dropPosition.position === "below") {
-                targetIndex += 1;
-              }
-
-              onTaskReorder(data.taskIds, targetIndex, columnIndex);
-            } else {
-              // Cross-column drop at the end (fallback)
-              onColumnDrop(data.taskIds, columnIndex);
+          if (dropPosition) {
+            // Cross-column drop with specific position
+            let targetIndex = dropPosition.taskIndex;
+            if (dropPosition.position === "below") {
+              targetIndex += 1;
             }
+
+            onTaskReorder(data.taskIds, targetIndex, columnIndex);
+          } else {
+            // Cross-column drop at the end (fallback)
+            onColumnDrop(data.taskIds, columnIndex);
           }
         }
       }

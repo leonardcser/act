@@ -38,7 +38,14 @@ export function TaskItem({
   taskIndex,
   isReorderDragActive,
 }: TaskItemProps) {
-  const { currentDragData, setCurrentDragData } = useDrag();
+  const {
+    currentDragData,
+    setCurrentDragData,
+    canDropOnTask,
+    calculateDropPosition,
+    getDropEffect,
+  } = useDrag();
+
   const [isEditing, setIsEditing] = React.useState(false);
   const [inputValue, setInputValue] = React.useState(task.name);
   const [isDragOver, setIsDragOver] = React.useState(false);
@@ -90,18 +97,6 @@ export function TaskItem({
     onTaskToggle(task.id);
   };
 
-  // Check if dragging a task to target would create a cycle
-  const wouldCreateCycle = (
-    draggedTaskId: string,
-    targetTaskId: string
-  ): boolean => {
-    if (draggedTaskId === targetTaskId) return true;
-
-    // Check if target is a descendant of the dragged task
-    const allSubtasks = getAllSubtasks(draggedTaskId);
-    return allSubtasks.some((subtask) => subtask.id === targetTaskId);
-  };
-
   const handleDragStart = (e: React.DragEvent) => {
     if (isEditing) {
       e.preventDefault();
@@ -141,31 +136,17 @@ export function TaskItem({
       return;
     }
 
-    // Don't allow dropping on dragged tasks themselves
-    if (currentDragData.taskIds.includes(task.id)) {
+    const isSameColumn = currentDragData.sourceColumnIndex === columnIndex;
+    const isCrossColumn = !isSameColumn;
+    const canDrop = canDropOnTask(task.id, getAllSubtasks);
+
+    if (!canDrop) {
       e.dataTransfer.dropEffect = "none";
       return;
     }
 
-    const isSameColumn = currentDragData.sourceColumnIndex === columnIndex;
-    const isCrossColumn = !isSameColumn;
-
-    // Check if this would create a cycle (for subtask creation)
-    const canDropAsSubtask = !currentDragData.taskIds.some((taskId: string) =>
-      wouldCreateCycle(taskId, task.id)
-    );
-
-    // Determine if we're hovering over the edges (for reordering) or center (for subtasks)
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mouseY = e.clientY;
-    const taskTop = rect.top;
-    const taskBottom = rect.bottom;
-    const taskHeight = rect.height;
-    const edgeThreshold = Math.min(taskHeight * 0.25, 12); // 25% of task height or 12px, whichever is smaller
-
-    const isHoveringTopEdge = mouseY < taskTop + edgeThreshold;
-    const isHoveringBottomEdge = mouseY > taskBottom - edgeThreshold;
-    const isHoveringEdge = isHoveringTopEdge || isHoveringBottomEdge;
+    const dropPosition = calculateDropPosition(e);
+    const isHoveringEdge = dropPosition.isHoveringEdge;
 
     // MODE 1: Reordering (same-column OR cross-column) when hovering over task edges
     if (
@@ -177,10 +158,9 @@ export function TaskItem({
       // Clear subtask drop indicator
       setIsDragOver(false);
 
-      // Determine drop position based on which edge
-      const position: "above" | "below" = isHoveringTopEdge ? "above" : "below";
-      onReorderDragOver(taskIndex, position);
-      e.dataTransfer.dropEffect = "move";
+      // Signal reorder position
+      onReorderDragOver(taskIndex, dropPosition.position);
+      e.dataTransfer.dropEffect = getDropEffect(isSameColumn, true, true);
       return;
     }
 
@@ -191,13 +171,8 @@ export function TaskItem({
         onReorderDragOver(-1, "above"); // Clear drop position by using invalid index
       }
 
-      if (canDropAsSubtask) {
-        e.dataTransfer.dropEffect = "move";
-        setIsDragOver(true);
-      } else {
-        e.dataTransfer.dropEffect = "none";
-        setIsDragOver(false);
-      }
+      e.dataTransfer.dropEffect = getDropEffect(isSameColumn, true);
+      setIsDragOver(true);
       return;
     }
 
@@ -230,16 +205,13 @@ export function TaskItem({
         // Handle subtask creation when dropping on a task
         // (Reordering between tasks is handled by the column component)
 
-        // Validate the drop
-        const canDrop =
-          !data.taskIds.includes(task.id) &&
-          !data.taskIds.some((taskId: string) =>
-            wouldCreateCycle(taskId, task.id)
-          );
+        // Validate the drop using centralized logic
+        const canDrop = canDropOnTask(task.id, getAllSubtasks);
 
         if (canDrop) {
           const isSameColumn = data.sourceColumnIndex === columnIndex;
           const isCrossColumn = !isSameColumn;
+          const dropPosition = calculateDropPosition(e);
 
           // Check if this is actually a reordering operation (edges) vs subtask creation (center)
           if (
@@ -247,19 +219,7 @@ export function TaskItem({
             onReorderDragOver &&
             taskIndex !== undefined
           ) {
-            // Determine drop position based on mouse position
-            const rect = e.currentTarget.getBoundingClientRect();
-            const mouseY = e.clientY;
-            const taskTop = rect.top;
-            const taskBottom = rect.bottom;
-            const taskHeight = rect.height;
-            const edgeThreshold = Math.min(taskHeight * 0.25, 12);
-
-            const isHoveringTopEdge = mouseY < taskTop + edgeThreshold;
-            const isHoveringBottomEdge = mouseY > taskBottom - edgeThreshold;
-            const isHoveringEdge = isHoveringTopEdge || isHoveringBottomEdge;
-
-            if (isHoveringEdge) {
+            if (dropPosition.isHoveringEdge) {
               // Dropped on edge - let column handle reordering by not stopping propagation
               return;
             } else {
