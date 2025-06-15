@@ -24,7 +24,6 @@ export function TaskItem({
   isOpen,
   subtaskCount,
   selectedTasks,
-  openTaskIds,
   onTaskClick,
   onTaskUpdate,
   onTaskDrop,
