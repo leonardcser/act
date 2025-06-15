@@ -123,6 +123,105 @@ function App() {
     [taskManager]
   );
 
+  const handleTaskDrop = useCallback(
+    async (draggedTaskIds: string[], targetTaskId: string) => {
+      try {
+        // Close subtask columns of dragged tasks before moving them
+        draggedTaskIds.forEach((taskId) => {
+          const subtaskColumnIndex = taskManager.appState.columns.findIndex(
+            (column) => column.parentTaskId === taskId
+          );
+          if (subtaskColumnIndex > 0) {
+            // Close the subtask column of this dragged task
+            taskManager.appState.closeSubtasksFromColumn(
+              subtaskColumnIndex - 1
+            );
+          }
+        });
+
+        // Use the efficient method to move all tasks at once
+        await taskManager.moveMultipleTasksToParent(
+          draggedTaskIds,
+          targetTaskId
+        );
+
+        // Find the target task and open its subtask column to show the moved tasks
+        const targetTask = taskManager.tasks.find(
+          (task) => task.id === targetTaskId
+        );
+        if (targetTask) {
+          // Find which column contains the target task
+          const targetColumnIndex = taskManager.appState.columns.findIndex(
+            (column) => {
+              const columnTasks = taskManager.getTasksByParentId(
+                column.parentTaskId
+              );
+              return columnTasks.some((task) => task.id === targetTaskId);
+            }
+          );
+
+          if (targetColumnIndex >= 0) {
+            // Open the subtask column for the target task
+            taskManager.appState.openSubtasks(targetTask, targetColumnIndex);
+
+            // Select and focus the newly opened subtask column
+            const newSubtaskColumnIndex = targetColumnIndex + 1;
+            taskManager.appState.setSelectedColumn(newSubtaskColumnIndex);
+            taskManager.appState.setFocusedColumn(newSubtaskColumnIndex);
+            taskManager.appState.setFocusedTaskIndex(0);
+
+            // Scroll to show the new column
+            setTimeout(() => {
+              scrollContainerRef.current?.scrollTo({
+                left: scrollContainerRef.current.scrollWidth,
+                behavior: "smooth",
+              });
+            }, 50);
+          }
+        }
+
+        // Clear selection after successful drop
+        taskManager.appState.setSelectedTasks(new Set());
+      } catch (error) {
+        console.error("Failed to move tasks:", error);
+      }
+    },
+    [taskManager]
+  );
+
+  const handleColumnDrop = useCallback(
+    async (draggedTaskIds: string[], targetColumnIndex: number) => {
+      try {
+        const targetColumn = taskManager.appState.columns[targetColumnIndex];
+
+        // Close subtask columns of dragged tasks before moving them
+        draggedTaskIds.forEach((taskId) => {
+          const subtaskColumnIndex = taskManager.appState.columns.findIndex(
+            (column) => column.parentTaskId === taskId
+          );
+          if (subtaskColumnIndex > 0) {
+            // Close the subtask column of this dragged task
+            taskManager.appState.closeSubtasksFromColumn(
+              subtaskColumnIndex - 1
+            );
+          }
+        });
+
+        // Use the efficient method to move all tasks at once
+        await taskManager.moveMultipleTasksToParent(
+          draggedTaskIds,
+          targetColumn?.parentTaskId
+        );
+
+        // Clear selection after successful drop
+        taskManager.appState.setSelectedTasks(new Set());
+      } catch (error) {
+        console.error("Failed to move tasks to column:", error);
+      }
+    },
+    [taskManager]
+  );
+
   // Show error state
   if (taskManager.error) {
     return (
@@ -179,9 +278,12 @@ function App() {
                 focusedColumn={taskManager.appState.focusedColumn}
                 isTaskOpen={taskManager.appState.isTaskOpen}
                 getSubtaskCount={taskManager.getSubtaskCountFromState}
+                getAllSubtasks={taskManager.getAllSubtasks}
                 onColumnClick={handleColumnClick}
                 onTaskClick={handleTaskClick}
                 onTaskUpdate={handleTaskUpdate}
+                onTaskDrop={handleTaskDrop}
+                onColumnDrop={handleColumnDrop}
               />
             );
           })}

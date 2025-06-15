@@ -30,6 +30,10 @@ export interface UseTaskManagerReturn {
   deleteMultipleTasks: (taskIds: string[]) => Promise<void>;
   reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;
   moveTaskToParent: (taskId: string, newParentId?: string) => Promise<void>;
+  moveMultipleTasksToParent: (
+    taskIds: string[],
+    newParentId?: string
+  ) => Promise<void>;
 }
 
 export const useTaskManager = (): UseTaskManagerReturn => {
@@ -123,6 +127,15 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     [tasks]
   );
 
+  const moveMultipleTasksToParent = useCallback(
+    async (taskIds: string[], newParentId?: string) => {
+      await TaskService.moveMultipleTasksToParent(taskIds, newParentId);
+      // Refresh tasks to get updated order
+      await tasks.loadTasks(tasks.selectedDateFilter);
+    },
+    [tasks]
+  );
+
   return {
     // Task data
     tasks: tasks.tasks,
@@ -149,5 +162,6 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     deleteMultipleTasks: tasks.deleteMultipleTasks,
     reorderTasks,
     moveTaskToParent,
+    moveMultipleTasksToParent,
   };
 };

@@ -13,7 +13,9 @@
     "windows": [
       {
         "title": "",
-        "titleBarStyle": "Overlay"
+        "titleBarStyle": "Overlay",
+        "resizable": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {

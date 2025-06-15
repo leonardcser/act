@@ -9,8 +9,12 @@ interface TaskItemProps {
   isSelected: boolean;
   isOpen: boolean;
   subtaskCount: number;
+  selectedTasks: Set<string>;
+  openTaskIds: Set<string>;
   onTaskClick: (task: Task, columnIndex: number, e: React.MouseEvent) => void;
   onTaskUpdate: (task: Task, newName: string) => void;
+  onTaskDrop: (draggedTaskIds: string[], targetTaskId: string) => void;
+  getAllSubtasks: (taskId: string) => Task[];
 }
 
 export function TaskItem({
@@ -19,11 +23,16 @@ export function TaskItem({
   isSelected,
   isOpen,
   subtaskCount,
+  selectedTasks,
+  openTaskIds,
   onTaskClick,
   onTaskUpdate,
+  onTaskDrop,
+  getAllSubtasks,
 }: TaskItemProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [inputValue, setInputValue] = React.useState(task.name);
+  const [isDragOver, setIsDragOver] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const isCompleted = task.completed;
 
@@ -66,8 +75,110 @@ export function TaskItem({
     setIsEditing(true);
   };
 
+  // Check if dragging a task to target would create a cycle
+  const wouldCreateCycle = (
+    draggedTaskId: string,
+    targetTaskId: string
+  ): boolean => {
+    if (draggedTaskId === targetTaskId) return true;
+
+    // Check if target is a descendant of the dragged task
+    const allSubtasks = getAllSubtasks(draggedTaskId);
+    return allSubtasks.some((subtask) => subtask.id === targetTaskId);
+  };
+
+  const handleDragStart = (e: React.DragEvent) => {
+    if (isEditing) {
+      e.preventDefault();
+      return;
+    }
+
+    // If this task is selected, drag all selected tasks
+    // Otherwise, just drag this task
+    const tasksToDrag = selectedTasks.has(task.id)
+      ? Array.from(selectedTasks)
+      : [task.id];
+
+    e.dataTransfer.setData(
+      "text/plain",
+      JSON.stringify({
+        type: "tasks",
+        taskIds: tasksToDrag,
+        sourceColumnIndex: columnIndex,
+      })
+    );
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
+      if (data.type === "tasks" && data.taskIds) {
+        // Check if we can drop here
+        const canDrop =
+          !data.taskIds.includes(task.id) &&
+          !data.taskIds.some((taskId: string) =>
+            wouldCreateCycle(taskId, task.id)
+          );
+
+        if (canDrop) {
+          e.dataTransfer.dropEffect = "move";
+          setIsDragOver(true);
+        } else {
+          e.dataTransfer.dropEffect = "none";
+        }
+      }
+    } catch {
+      e.dataTransfer.dropEffect = "none";
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only remove drag over state if we're actually leaving this element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if (data.type === "tasks" && data.taskIds) {
+        // Validate the drop
+        const canDrop =
+          !data.taskIds.includes(task.id) &&
+          !data.taskIds.some((taskId: string) =>
+            wouldCreateCycle(taskId, task.id)
+          );
+
+        if (canDrop) {
+          onTaskDrop(data.taskIds, task.id);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to handle drop:", error);
+    }
+  };
+
   return (
     <div
+      draggable={!isEditing}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       onClick={(e) => onTaskClick(task, columnIndex, e)}
       className={cn(
         "group flex items-center justify-between gap-2 p-3 transition-all duration-300 cursor-pointer",
@@ -77,7 +188,10 @@ export function TaskItem({
             : "hover:bg-green-50 dark:hover:bg-green-800/30 opacity-50"
           : isSelected
           ? "bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40"
-          : "hover:bg-neutral-50 dark:hover:bg-neutral-800/30"
+          : "hover:bg-neutral-50 dark:hover:bg-neutral-800/30",
+        isDragOver &&
+          "ring-2 ring-blue-400 dark:ring-blue-500 bg-blue-50/50 dark:bg-blue-900/20",
+        !isEditing && "cursor-grab active:cursor-grabbing"
       )}
     >
       <div className={cn("flex items-center gap-3", isEditing && "flex-1")}>

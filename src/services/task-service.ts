@@ -390,6 +390,55 @@ export class TaskService {
     }
   }
 
+  static async moveMultipleTasksToParent(
+    taskIds: string[],
+    newParentId?: string
+  ): Promise<void> {
+    const database = await DatabaseService.getConnection();
+
+    // Get the tasks being moved to check their current parents
+    const tasksToMove = (await database.select(
+      `SELECT id, parent_id, completed FROM tasks WHERE id IN (${taskIds
+        .map(() => "?")
+        .join(", ")})`,
+      taskIds
+    )) as DatabaseTask[];
+
+    if (tasksToMove.length === 0) return;
+
+    // Get the next order number for the new parent
+    const [{ max_order }] = (await database.select(
+      "SELECT COALESCE(MAX(task_order), -1) as max_order FROM tasks WHERE parent_id IS $1",
+      [newParentId || null]
+    )) as [{ max_order: number }];
+
+    // Update all tasks' parent_id and set them to consecutive orders
+    for (let i = 0; i < tasksToMove.length; i++) {
+      const task = tasksToMove[i];
+      await database.execute(
+        "UPDATE tasks SET parent_id = $1, task_order = $2 WHERE id = $3",
+        [newParentId || null, max_order + 1 + i, task.id]
+      );
+    }
+
+    // Handle parent-child completion logic for both old and new parents
+    const uniqueOldParents = new Set(
+      tasksToMove
+        .map((task) => task.parent_id)
+        .filter((id): id is string => Boolean(id))
+    );
+
+    for (const oldParentId of uniqueOldParents) {
+      // Check if old parent should be auto-completed/uncompleted after losing children
+      await this.updateParentCompletionStatus(oldParentId);
+    }
+
+    if (newParentId) {
+      // Check if new parent should be auto-completed/uncompleted after gaining children
+      await this.updateParentCompletionStatus(newParentId);
+    }
+  }
+
   static generateDateFilters(tasks: Task[]): DateFilter[] {
     return generateDateFilters(tasks);
   }
