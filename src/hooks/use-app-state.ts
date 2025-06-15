@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Task, Column, DateFilter } from "../types";
+import { Task, Column } from "../types";
 import { TaskService } from "../services/task-service";
 
 export interface UseAppStateReturn {

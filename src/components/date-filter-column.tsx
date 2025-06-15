@@ -62,11 +62,15 @@ export function DateFilterColumn({
               (todayFilter ? 1 : 0) + (yesterdayFilter ? 1 : 0) + histIndex;
             return (
               <DateFilterItem
-                key={filter.date.toISOString()}
+                key={
+                  filter.date?.toISOString() || `${filter.type}-${histIndex}`
+                }
                 filter={filter}
                 index={globalIndex}
                 isSelected={
                   selectedDateFilter?.type === "date" &&
+                  !!selectedDateFilter.date &&
+                  !!filter.date &&
                   selectedDateFilter.date.toDateString() ===
                     filter.date.toDateString()
                 }
