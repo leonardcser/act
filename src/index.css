@@ -8,5 +8,5 @@
 }
 
 body {
-  @apply overflow-hidden;
+  @apply overflow-hidden font-mono tracking-tight;
 }

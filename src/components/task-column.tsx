@@ -63,7 +63,7 @@ export function TaskColumn({
             className="text-center py-8 text-neutral-400 dark:text-neutral-500 text-sm cursor-default select-none"
             onClick={(e) => onColumnClick(columnIndex, e)}
           >
-            No tasks yet. Press 'N' to add one.
+            No tasks yet.
           </div>
         )}
       </div>

@@ -102,7 +102,7 @@ export function TaskItem({
           onBlur={handleInputBlur}
           onKeyDown={handleInputKeyDown}
           onClick={handleTaskNameClick}
-          size={isEditing ? undefined : inputValue.length - 1 || 1}
+          size={isEditing ? undefined : Math.max(inputValue.length + 1, 1)}
           className={cn(
             "text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text",
             isEditing ? "flex-1" : "w-fit",
