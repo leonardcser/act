@@ -133,7 +133,7 @@ function DateFilterItem({
   onDateFilterClick,
   onDateFilterDrop,
 }: DateFilterItemProps) {
-  const { currentDragData, getDropEffect } = useDrag();
+  const { currentDragData, getDropEffect, setCurrentDragData } = useDrag();
   const [isDragOver, setIsDragOver] = React.useState(false);
 
   // Get the target date for this filter
@@ -199,6 +199,8 @@ function DateFilterItem({
       if (data.type === "tasks" && data.taskIds && onDateFilterDrop) {
         const targetDate = getTargetDate();
         if (targetDate) {
+          // Clear drag context immediately to prevent visual artifacts
+          setCurrentDragData(null);
           onDateFilterDrop(data.taskIds, targetDate);
         }
       }
