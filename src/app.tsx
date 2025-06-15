@@ -122,6 +122,9 @@ function App() {
   const handleDateFilterDrop = useCallback(
     async (draggedTaskIds: string[], targetDate: Date) => {
       try {
+        // Move tasks to root level (remove parent) when dropping on date filter
+        await taskManager.moveTasksToParent(draggedTaskIds, undefined);
+
         // Update the dates for all dragged tasks and their subtasks
         await taskManager.updateTasksDates(draggedTaskIds, targetDate);
 
