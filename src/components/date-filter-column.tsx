@@ -232,8 +232,6 @@ function DateFilterItem({
           "transition-colors",
           isSelected
             ? "text-blue-600 dark:text-blue-400"
-            : isDragOver
-            ? "text-blue-600 dark:text-blue-400"
             : "text-neutral-400 dark:text-neutral-500"
         )}
       >
@@ -244,8 +242,6 @@ function DateFilterItem({
           "flex-1 text-sm font-medium transition-colors",
           isSelected
             ? "text-blue-900 dark:text-blue-100"
-            : isDragOver
-            ? "text-blue-800 dark:text-blue-200"
             : isFocused
             ? "text-neutral-800 dark:text-neutral-200"
             : "text-neutral-600 dark:text-neutral-400"
