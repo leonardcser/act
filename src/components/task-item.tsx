@@ -219,7 +219,7 @@ export function TaskItem({
           size={isEditing ? undefined : Math.max(inputValue.length + 1, 1)}
           className={cn(
             "text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text",
-            isEditing ? "flex-1" : "w-fit",
+            isEditing ? "flex-1" : "select-none w-fit",
             isCompleted
               ? isSelected
                 ? "line-through text-green-900 dark:text-green-100"
@@ -235,7 +235,7 @@ export function TaskItem({
           readOnly={!isEditing}
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 select-none">
         {subtaskCount > 0 && (
           <div
             className={cn(
