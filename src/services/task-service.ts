@@ -205,41 +205,49 @@ export class TaskService {
     ]);
   }
 
-  static async deleteTask(id: string): Promise<void> {
+  static async deleteTasks(taskIds: string | string[]): Promise<void> {
     const database = await DatabaseService.getConnection();
 
-    // Get the task being deleted to check if it has a parent
-    const [taskToDelete] = (await database.select(
-      "SELECT id, parent_id, completed FROM tasks WHERE id = $1",
-      [id]
-    )) as DatabaseTask[];
+    // Normalize to array
+    const idsArray = Array.isArray(taskIds) ? taskIds : [taskIds];
 
-    // Delete the task and all its subtasks
-    await database.execute(
-      "DELETE FROM tasks WHERE id = $1 OR parent_id = $1",
-      [id]
-    );
+    // Process each task for deletion
+    for (const id of idsArray) {
+      // Get the task being deleted to check if it has a parent
+      const [taskToDelete] = (await database.select(
+        "SELECT id, parent_id, completed FROM tasks WHERE id = $1",
+        [id]
+      )) as DatabaseTask[];
 
-    // Handle parent-child completion logic
-    // If the deleted task had a parent, check if parent should be auto-completed
-    if (taskToDelete?.parent_id) {
-      // Check remaining siblings after deletion
-      const siblings = await this.getSubtasks(taskToDelete.parent_id);
+      if (!taskToDelete) continue; // Skip if task doesn't exist
 
-      if (siblings.length > 0) {
-        const allSiblingsCompleted = siblings.every((sibling) =>
-          Boolean(sibling.completed)
-        );
+      // Delete the task and all its subtasks
+      await database.execute(
+        "DELETE FROM tasks WHERE id = $1 OR parent_id = $1",
+        [id]
+      );
 
-        if (allSiblingsCompleted) {
-          // Auto-complete parent
-          const now = new Date().toISOString();
-          await database.execute(
-            "UPDATE tasks SET completed = TRUE, completed_at = $1 WHERE id = $2",
-            [now, taskToDelete.parent_id]
+      // Handle parent-child completion logic
+      // If the deleted task had a parent, check if parent should be auto-completed
+      if (taskToDelete.parent_id) {
+        // Check remaining siblings after deletion
+        const siblings = await this.getSubtasks(taskToDelete.parent_id);
+
+        if (siblings.length > 0) {
+          const allSiblingsCompleted = siblings.every((sibling) =>
+            Boolean(sibling.completed)
           );
-          // Recursively check parent's parent
-          await this.handleParentChildCompletion(taskToDelete.parent_id);
+
+          if (allSiblingsCompleted) {
+            // Auto-complete parent
+            const now = new Date().toISOString();
+            await database.execute(
+              "UPDATE tasks SET completed = TRUE, completed_at = $1 WHERE id = $2",
+              [now, taskToDelete.parent_id]
+            );
+            // Recursively check parent's parent
+            await this.handleParentChildCompletion(taskToDelete.parent_id);
+          }
         }
       }
     }
@@ -350,58 +358,21 @@ export class TaskService {
     }
   }
 
-  static async moveTaskToParent(
-    taskId: string,
+  static async moveTasksToParent(
+    taskIds: string | string[],
     newParentId?: string
   ): Promise<void> {
     const database = await DatabaseService.getConnection();
 
-    // Get the task being moved to check its current parent
-    const [taskToMove] = (await database.select(
-      "SELECT id, parent_id, completed FROM tasks WHERE id = $1",
-      [taskId]
-    )) as DatabaseTask[];
-
-    if (!taskToMove) return;
-
-    const oldParentId = taskToMove.parent_id;
-
-    // Get the next order number for the new parent
-    const [{ max_order }] = (await database.select(
-      "SELECT COALESCE(MAX(task_order), -1) as max_order FROM tasks WHERE parent_id IS $1",
-      [newParentId || null]
-    )) as [{ max_order: number }];
-
-    // Update the task's parent_id and set it to the end of the new parent's order
-    await database.execute(
-      "UPDATE tasks SET parent_id = $1, task_order = $2 WHERE id = $3",
-      [newParentId || null, max_order + 1, taskId]
-    );
-
-    // Handle parent-child completion logic for both old and new parents
-    if (oldParentId) {
-      // Check if old parent should be auto-completed/uncompleted after losing this child
-      await this.updateParentCompletionStatus(oldParentId);
-    }
-
-    if (newParentId) {
-      // Check if new parent should be auto-completed/uncompleted after gaining this child
-      await this.updateParentCompletionStatus(newParentId);
-    }
-  }
-
-  static async moveMultipleTasksToParent(
-    taskIds: string[],
-    newParentId?: string
-  ): Promise<void> {
-    const database = await DatabaseService.getConnection();
+    // Normalize to array
+    const idsArray = Array.isArray(taskIds) ? taskIds : [taskIds];
 
     // Get the tasks being moved to check their current parents
     const tasksToMove = (await database.select(
-      `SELECT id, parent_id, completed FROM tasks WHERE id IN (${taskIds
+      `SELECT id, parent_id, completed FROM tasks WHERE id IN (${idsArray
         .map(() => "?")
         .join(", ")})`,
-      taskIds
+      idsArray
     )) as DatabaseTask[];
 
     if (tasksToMove.length === 0) return;
@@ -443,36 +414,18 @@ export class TaskService {
     return generateDateFilters(tasks);
   }
 
-  static async updateTaskDate(taskId: string, newDate: Date): Promise<void> {
-    const database = await DatabaseService.getConnection();
-    const dateStr = newDate.toISOString();
-
-    // Update the task's date
-    await database.execute("UPDATE tasks SET date_created = $1 WHERE id = $2", [
-      dateStr,
-      taskId,
-    ]);
-
-    // Get all subtasks recursively and update their dates too
-    const allSubtasks = await this.getAllSubtasksRecursive(taskId);
-
-    for (const subtask of allSubtasks) {
-      await database.execute(
-        "UPDATE tasks SET date_created = $1 WHERE id = $2",
-        [dateStr, subtask.id]
-      );
-    }
-  }
-
-  static async updateMultipleTasksDates(
-    taskIds: string[],
+  static async updateTasksDates(
+    taskIds: string | string[],
     newDate: Date
   ): Promise<void> {
     const database = await DatabaseService.getConnection();
     const dateStr = newDate.toISOString();
 
+    // Normalize to array
+    const idsArray = Array.isArray(taskIds) ? taskIds : [taskIds];
+
     // Update all specified tasks
-    for (const taskId of taskIds) {
+    for (const taskId of idsArray) {
       await database.execute(
         "UPDATE tasks SET date_created = $1 WHERE id = $2",
         [dateStr, taskId]

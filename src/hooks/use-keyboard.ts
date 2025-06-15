@@ -7,9 +7,12 @@ interface TaskOperations {
   tasks: Task[];
   addTask: (name: string, parentId?: string) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
-  deleteMultipleTasks: (taskIds: string[]) => Promise<void>;
+  deleteTasks: (taskIds: string | string[]) => Promise<void>;
   reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;
-  moveTaskToParent: (taskId: string, newParentId?: string) => Promise<void>;
+  moveTasksToParent: (
+    taskIds: string | string[],
+    newParentId?: string
+  ) => Promise<void>;
 }
 
 interface UseKeyboardProps {
@@ -173,7 +176,7 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
       );
 
       // Move the task to the target column (this will add it to the end automatically)
-      await taskOps.moveTaskToParent(
+      await taskOps.moveTasksToParent(
         focusedTask.id,
         targetColumn?.parentTaskId
       );
@@ -213,7 +216,7 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
       }
     });
 
-    await taskOps.deleteMultipleTasks(selectedTasksArray);
+    await taskOps.deleteTasks(selectedTasksArray);
     appState.clearSelection();
   }, [appState.selectedTasks, taskOps, appState]);
 

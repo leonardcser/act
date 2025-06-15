@@ -27,15 +27,16 @@ export interface UseTaskManagerReturn {
   loadTasks: (dateFilter?: DateFilter) => Promise<void>;
   addTask: (name: string, parentId?: string) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
-  deleteMultipleTasks: (taskIds: string[]) => Promise<void>;
+  deleteTasks: (taskIds: string | string[]) => Promise<void>;
   reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;
-  moveTaskToParent: (taskId: string, newParentId?: string) => Promise<void>;
-  moveMultipleTasksToParent: (
-    taskIds: string[],
+  moveTasksToParent: (
+    taskIds: string | string[],
     newParentId?: string
   ) => Promise<void>;
-  updateTaskDate: (taskId: string, newDate: Date) => Promise<void>;
-  updateMultipleTasksDates: (taskIds: string[], newDate: Date) => Promise<void>;
+  updateTasksDates: (
+    taskIds: string | string[],
+    newDate: Date
+  ) => Promise<void>;
 }
 
 export const useTaskManager = (): UseTaskManagerReturn => {
@@ -120,36 +121,18 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     [tasks]
   );
 
-  const moveTaskToParent = useCallback(
-    async (taskId: string, newParentId?: string) => {
-      await TaskService.moveTaskToParent(taskId, newParentId);
+  const moveTasksToParent = useCallback(
+    async (taskIds: string | string[], newParentId?: string) => {
+      await TaskService.moveTasksToParent(taskIds, newParentId);
       // Refresh tasks to get updated order
       await tasks.loadTasks(tasks.selectedDateFilter);
     },
     [tasks]
   );
 
-  const moveMultipleTasksToParent = useCallback(
-    async (taskIds: string[], newParentId?: string) => {
-      await TaskService.moveMultipleTasksToParent(taskIds, newParentId);
-      // Refresh tasks to get updated order
-      await tasks.loadTasks(tasks.selectedDateFilter);
-    },
-    [tasks]
-  );
-
-  const updateTaskDate = useCallback(
-    async (taskId: string, newDate: Date) => {
-      await TaskService.updateTaskDate(taskId, newDate);
-      // Refresh tasks to get updated date
-      await tasks.loadTasks(tasks.selectedDateFilter);
-    },
-    [tasks]
-  );
-
-  const updateMultipleTasksDates = useCallback(
-    async (taskIds: string[], newDate: Date) => {
-      await TaskService.updateMultipleTasksDates(taskIds, newDate);
+  const updateTasksDates = useCallback(
+    async (taskIds: string | string[], newDate: Date) => {
+      await TaskService.updateTasksDates(taskIds, newDate);
       // Refresh tasks to get updated dates
       await tasks.loadTasks(tasks.selectedDateFilter);
     },
@@ -179,11 +162,9 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     loadTasks: tasks.loadTasks,
     addTask: tasks.addTask,
     toggleTask: tasks.toggleTask,
-    deleteMultipleTasks: tasks.deleteMultipleTasks,
+    deleteTasks: tasks.deleteTasks,
     reorderTasks,
-    moveTaskToParent,
-    moveMultipleTasksToParent,
-    updateTaskDate,
-    updateMultipleTasksDates,
+    moveTasksToParent,
+    updateTasksDates,
   };
 };

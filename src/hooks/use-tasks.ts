@@ -11,9 +11,8 @@ export interface UseTasksReturn {
   setSelectedDateFilter: (filter?: DateFilter) => void;
   addTask: (name: string, parentId?: string) => Promise<void>;
   updateTask: (id: string, name: string) => Promise<void>;
-  deleteTask: (id: string) => Promise<void>;
+  deleteTasks: (taskIds: string | string[]) => Promise<void>;
   toggleTask: (id: string) => Promise<void>;
-  deleteMultipleTasks: (taskIds: string[]) => Promise<void>;
   loadTasks: (dateFilter?: DateFilter) => Promise<void>;
 }
 
@@ -67,15 +66,15 @@ export const useTasks = (): UseTasksReturn => {
     }
   }, []);
 
-  const deleteTask = useCallback(
-    async (id: string) => {
+  const deleteTasks = useCallback(
+    async (taskIds: string | string[]) => {
       try {
-        await TaskService.deleteTask(id);
+        await TaskService.deleteTasks(taskIds);
         // Reload tasks to get updated parent completion states
         await loadTasks(selectedDateFilter);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to delete task");
-        console.error("Failed to delete task:", err);
+        setError(err instanceof Error ? err.message : "Failed to delete tasks");
+        console.error("Failed to delete tasks:", err);
       }
     },
     [loadTasks, selectedDateFilter]
@@ -92,15 +91,6 @@ export const useTasks = (): UseTasksReturn => {
       }
     },
     [loadTasks, selectedDateFilter]
-  );
-
-  const deleteMultipleTasks = useCallback(
-    async (taskIds: string[]) => {
-      for (const taskId of taskIds) {
-        await deleteTask(taskId);
-      }
-    },
-    [deleteTask]
   );
 
   // Load tasks on mount and when date filter changes
@@ -132,9 +122,8 @@ export const useTasks = (): UseTasksReturn => {
     setSelectedDateFilter,
     addTask,
     updateTask,
-    deleteTask,
+    deleteTasks,
     toggleTask,
-    deleteMultipleTasks,
     loadTasks,
   };
 };

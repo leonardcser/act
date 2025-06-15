@@ -17,9 +17,9 @@ function App() {
       tasks: taskManager.tasks,
       addTask: taskManager.addTask,
       toggleTask: taskManager.toggleTask,
-      deleteMultipleTasks: taskManager.deleteMultipleTasks,
+      deleteTasks: taskManager.deleteTasks,
       reorderTasks: taskManager.reorderTasks,
-      moveTaskToParent: taskManager.moveTaskToParent,
+      moveTasksToParent: taskManager.moveTasksToParent,
     },
   });
 
@@ -120,7 +120,7 @@ function App() {
     async (draggedTaskIds: string[], targetDate: Date) => {
       try {
         // Update the dates for all dragged tasks and their subtasks
-        await taskManager.updateMultipleTasksDates(draggedTaskIds, targetDate);
+        await taskManager.updateTasksDates(draggedTaskIds, targetDate);
 
         // Clear selection after successful drop
         taskManager.appState.setSelectedTasks(new Set());
@@ -154,11 +154,8 @@ function App() {
           }
         });
 
-        // Use the efficient method to move all tasks at once
-        await taskManager.moveMultipleTasksToParent(
-          draggedTaskIds,
-          targetTaskId
-        );
+        // Move all dragged tasks to become subtasks of the target task
+        await taskManager.moveTasksToParent(draggedTaskIds, targetTaskId);
 
         // Find the target task and open its subtask column to show the moved tasks
         const targetTask = taskManager.tasks.find(
@@ -222,8 +219,8 @@ function App() {
           }
         });
 
-        // Use the efficient method to move all tasks at once
-        await taskManager.moveMultipleTasksToParent(
+        // Move all dragged tasks to the target column
+        await taskManager.moveTasksToParent(
           draggedTaskIds,
           targetColumn?.parentTaskId
         );
