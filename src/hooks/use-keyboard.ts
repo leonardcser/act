@@ -9,6 +9,7 @@ interface TaskOperations {
   toggleTask: (taskId: string) => Promise<void>;
   deleteMultipleTasks: (taskIds: string[]) => Promise<void>;
   reorderTasks: (taskIds: string[], parentId?: string) => Promise<void>;
+  moveTaskToParent: (taskId: string, newParentId?: string) => Promise<void>;
 }
 
 interface UseKeyboardProps {
@@ -151,29 +152,49 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
         targetColumnIndex = appState.focusedColumn + 1;
       }
 
+      const currentColumn = appState.columns[appState.focusedColumn];
       const targetColumn = appState.columns[targetColumnIndex];
+
+      // Prevent moving a task to its own subtask column
+      if (targetColumn?.parentTaskId === focusedTask.id) {
+        return; // Cannot move a task to its own subtask column
+      }
+
+      // Get tasks in both columns
+      const currentColumnTasks = TaskService.getTasksByParentId(
+        taskOps.tasks,
+        currentColumn?.parentTaskId,
+        appState.showCompleted
+      );
       const targetColumnTasks = TaskService.getTasksByParentId(
         taskOps.tasks,
         targetColumn?.parentTaskId,
         appState.showCompleted
       );
 
-      // Create new order for target column with the moved task at the end
-      const newTaskIds = [
-        ...targetColumnTasks.map((task) => task.id),
+      // Move the task to the target column (this will add it to the end automatically)
+      await taskOps.moveTaskToParent(
         focusedTask.id,
-      ];
-
-      // Update the task's parent_id by removing from current column and adding to target column
-      // This is a bit complex as we need to update the task's parent_id first
-      // For now, we'll just move the task within the same parent (reorder within column)
-      // To move between columns, we'd need to update the task's parent_id
-
-      // For this implementation, let's focus on vertical reordering within columns
-      // and leave horizontal movement as navigation only
-      console.warn(
-        "Horizontal task reordering between columns not yet implemented"
+        targetColumn?.parentTaskId
       );
+
+      // Reorder the current column to close the gap left by the moved task
+      const remainingCurrentTasks = currentColumnTasks
+        .filter((task) => task.id !== focusedTask.id)
+        .map((task) => task.id);
+
+      if (remainingCurrentTasks.length > 0) {
+        await taskOps.reorderTasks(
+          remainingCurrentTasks,
+          currentColumn?.parentTaskId
+        );
+      }
+
+      // Update focus to follow the moved task in the target column
+      appState.setFocusedColumn(targetColumnIndex);
+      const newTaskIndex = targetColumnTasks.length; // Task will be at the end
+      appState.setFocusedTaskIndex(newTaskIndex);
+      appState.selectTask(focusedTask.id, targetColumnIndex, newTaskIndex);
     },
     [getFocusedTask, taskOps, appState]
   );
@@ -278,11 +299,11 @@ export const useKeyboard = ({ appState, taskOps }: UseKeyboardProps) => {
           return;
         } else if (e.key === "ArrowLeft" || e.key === "H") {
           e.preventDefault();
-          reorderTaskHorizontal("left");
+          // reorderTaskHorizontal("left");
           return;
         } else if (e.key === "ArrowRight" || e.key === "L") {
           e.preventDefault();
-          reorderTaskHorizontal("right");
+          // reorderTaskHorizontal("right");
           return;
         }
       }

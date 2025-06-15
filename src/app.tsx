@@ -19,6 +19,7 @@ function App() {
       toggleTask: taskManager.toggleTask,
       deleteMultipleTasks: taskManager.deleteMultipleTasks,
       reorderTasks: taskManager.reorderTasks,
+      moveTaskToParent: taskManager.moveTaskToParent,
     },
   });
 

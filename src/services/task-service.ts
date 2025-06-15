@@ -2,7 +2,6 @@ import { Task, DateFilter } from "../types";
 import { DatabaseService, DatabaseTask } from "./database";
 import { generateDateFilters } from "../utils/date";
 import { v4 as uuidv4 } from "uuid";
-import Database from "@tauri-apps/plugin-sql";
 
 export class TaskService {
   private static sortTasks(tasks: Task[]): Task[] {
@@ -41,28 +40,6 @@ export class TaskService {
     );
   }
 
-  private static async getTasksByStatus(
-    completed: boolean
-  ): Promise<DatabaseTask[]> {
-    const database = await DatabaseService.getConnection();
-    return await database.select(
-      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks WHERE completed = $1 ORDER BY parent_id, task_order ASC",
-      [completed]
-    );
-  }
-
-  private static async getTasksByDateAndStatus(
-    startDate: string,
-    endDate: string,
-    completed: boolean
-  ): Promise<DatabaseTask[]> {
-    const database = await DatabaseService.getConnection();
-    return await database.select(
-      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks WHERE date_created >= $1 AND date_created <= $2 AND completed = $3 ORDER BY parent_id, task_order ASC",
-      [startDate, endDate, completed]
-    );
-  }
-
   private static async getTodaysTasks(): Promise<DatabaseTask[]> {
     const today = new Date().toISOString().split("T")[0];
     const startOfDay = `${today}T00:00:00.000Z`;
@@ -70,33 +47,11 @@ export class TaskService {
     return await this.getTasksByDate(startOfDay, endOfDay);
   }
 
-  private static async getTodaysCompletedTasks(): Promise<DatabaseTask[]> {
-    const today = new Date().toISOString().split("T")[0];
-    const startOfDay = `${today}T00:00:00.000Z`;
-    const endOfDay = `${today}T23:59:59.999Z`;
-    return await this.getTasksByDateAndStatus(startOfDay, endOfDay, true);
-  }
-
-  private static async getTodaysPendingTasks(): Promise<DatabaseTask[]> {
-    const today = new Date().toISOString().split("T")[0];
-    const startOfDay = `${today}T00:00:00.000Z`;
-    const endOfDay = `${today}T23:59:59.999Z`;
-    return await this.getTasksByDateAndStatus(startOfDay, endOfDay, false);
-  }
-
   private static async getTasksForDate(date: Date): Promise<DatabaseTask[]> {
     const dateStr = date.toISOString().split("T")[0];
     const startOfDay = `${dateStr}T00:00:00.000Z`;
     const endOfDay = `${dateStr}T23:59:59.999Z`;
     return await this.getTasksByDate(startOfDay, endOfDay);
-  }
-
-  private static async getCompletedTasks(): Promise<DatabaseTask[]> {
-    return await this.getTasksByStatus(true);
-  }
-
-  private static async getPendingTasks(): Promise<DatabaseTask[]> {
-    return await this.getTasksByStatus(false);
   }
 
   private static async getSubtasks(parentId: string): Promise<DatabaseTask[]> {
@@ -345,6 +300,93 @@ export class TaskService {
         "UPDATE tasks SET task_order = $1 WHERE id = $2 AND parent_id IS $3",
         [i, taskIds[i], parentId || null]
       );
+    }
+  }
+
+  private static async updateParentCompletionStatus(
+    parentId: string
+  ): Promise<void> {
+    const database = await DatabaseService.getConnection();
+
+    // Get all children of this parent
+    const children = await this.getSubtasks(parentId);
+
+    if (children.length === 0) return;
+
+    const allChildrenCompleted = children.every((child) =>
+      Boolean(child.completed)
+    );
+
+    // Get current parent status
+    const [parent] = (await database.select(
+      "SELECT id, completed, parent_id FROM tasks WHERE id = $1",
+      [parentId]
+    )) as DatabaseTask[];
+
+    if (!parent) return;
+
+    // Update parent completion status if needed
+    if (allChildrenCompleted && !Boolean(parent.completed)) {
+      // Auto-complete parent
+      const now = new Date().toISOString();
+      await database.execute(
+        "UPDATE tasks SET completed = TRUE, completed_at = $1 WHERE id = $2",
+        [now, parentId]
+      );
+      // Recursively check parent's parent
+      if (parent.parent_id) {
+        await this.updateParentCompletionStatus(parent.parent_id);
+      }
+    } else if (!allChildrenCompleted && Boolean(parent.completed)) {
+      // Auto-uncomplete parent
+      await database.execute(
+        "UPDATE tasks SET completed = FALSE, completed_at = NULL WHERE id = $1",
+        [parentId]
+      );
+      // Recursively check parent's parent
+      if (parent.parent_id) {
+        await this.updateParentCompletionStatus(parent.parent_id);
+      }
+    }
+  }
+
+  static async moveTaskToParent(
+    taskId: string,
+    newParentId?: string
+  ): Promise<void> {
+    const database = await DatabaseService.getConnection();
+
+    // Get the task being moved to check its current parent
+    const [taskToMove] = (await database.select(
+      "SELECT id, parent_id, completed FROM tasks WHERE id = $1",
+      [taskId]
+    )) as DatabaseTask[];
+
+    if (!taskToMove) return;
+
+    const oldParentId = taskToMove.parent_id;
+
+    // Get the next order number for the new parent
+    const [{ max_order }] = (await database.select(
+      "SELECT COALESCE(MAX(task_order), -1) as max_order FROM tasks WHERE parent_id IS $1",
+      [newParentId || null]
+    )) as [{ max_order: number }];
+
+    // Update the task's parent_id and set it to the end of the new parent's order
+    await database.execute(
+      "UPDATE tasks SET parent_id = $1, task_order = $2 WHERE id = $3",
+      [newParentId || null, max_order + 1, taskId]
+    );
+
+    // Handle parent-child completion logic for both old and new parents
+    if (oldParentId) {
+      // Check if old parent should be auto-completed/uncompleted after losing this child
+      await this.updateParentCompletionStatus(oldParentId);
+    }
+
+    if (newParentId) {
+      // Check if new parent should be auto-completed/uncompleted after gaining this child
+      await this.updateParentCompletionStatus(newParentId);
     }
   }
 
