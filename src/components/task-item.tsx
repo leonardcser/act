@@ -1,5 +1,5 @@
 import React from "react";
-import { Folder } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { cn } from "../utils";
 import { Task } from "../types";
 import { useDrag } from "../contexts/drag-context";
@@ -276,26 +276,80 @@ export function TaskItem({
           isEditing ? "flex-1" : "overflow-hidden"
         )}
       >
-        {subtaskCount > 0 ? (
-          <div
+        {/* Drag handle */}
+        <div
+          className={cn(
+            "transition-colors relative z-10 cursor-grab active:cursor-grabbing",
+            isCompleted
+              ? "text-green-400 dark:text-green-500"
+              : isSelected
+              ? "text-blue-500 dark:text-blue-400"
+              : "text-neutral-300 dark:text-neutral-600 group-hover:text-neutral-400 dark:group-hover:text-neutral-500"
+          )}
+        >
+          <GripVertical size={16} />
+        </div>
+
+        {/* Task name */}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
             className={cn(
-              "transition-colors relative z-10",
+              "flex-1 text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text relative z-10",
+              "ring-1 ring-blue-300 dark:ring-blue-600 rounded px-1 bg-white dark:bg-neutral-800"
+            )}
+          />
+        ) : (
+          <span
+            onClick={handleTaskNameClick}
+            className={cn(
+              "text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10 truncate",
               isCompleted
-                ? "text-green-500 dark:text-green-400"
+                ? isSelected
+                  ? "line-through text-green-900 dark:text-green-100"
+                  : "line-through text-neutral-500 dark:text-neutral-400"
                 : isSelected
-                ? "text-blue-600 dark:text-blue-400"
+                ? "text-blue-900 dark:text-blue-100"
                 : isOpen
-                ? "text-neutral-400 dark:text-neutral-500"
-                : "text-neutral-200 dark:text-neutral-600"
+                ? "text-neutral-800 dark:text-neutral-200"
+                : "text-neutral-400 dark:text-neutral-500"
             )}
           >
-            <Folder size={16} />
+            {task.name}
+          </span>
+        )}
+      </div>
+
+      {/* Right side items */}
+      <div className="flex items-center gap-2 select-none relative z-10">
+        {/* Subtask count badge */}
+        {subtaskCount > 0 && (
+          <div
+            className={cn(
+              "grid place-items-center text-xs font-bold size-5 rounded-full transition-colors",
+              isCompleted
+                ? "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50"
+                : isSelected
+                ? "text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50"
+                : isOpen
+                ? "text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800"
+                : "text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50"
+            )}
+          >
+            <span>{subtaskCount}</span>
           </div>
-        ) : (
+        )}
+
+        {/* Checkbox */}
+        {subtaskCount === 0 && (
           <button
             onClick={handleCheckboxClick}
             className={cn(
-              "flex shrink-0 items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer relative z-10",
+              "flex shrink-0 items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
               isCompleted
                 ? "border-green-500 dark:border-green-400 text-white"
                 : isSelected
@@ -321,55 +375,6 @@ export function TaskItem({
               </svg>
             )}
           </button>
-        )}
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onBlur={handleInputBlur}
-            onKeyDown={handleInputKeyDown}
-            className={cn(
-              "flex-1 text-sm font-medium transition-all duration-300 bg-transparent border-none outline-none cursor-text relative z-10",
-              "ring-1 ring-blue-300 dark:ring-blue-600 rounded px-1 bg-white dark:bg-neutral-800"
-            )}
-          />
-        ) : (
-          <span
-            onClick={handleTaskNameClick}
-            className={cn(
-              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10 truncate",
-              isCompleted
-                ? isSelected
-                  ? "line-through text-green-900 dark:text-green-100"
-                  : "line-through text-neutral-500 dark:text-neutral-400"
-                : isSelected
-                ? "text-blue-900 dark:text-blue-100"
-                : isOpen
-                ? "text-neutral-800 dark:text-neutral-200"
-                : "text-neutral-400 dark:text-neutral-500"
-            )}
-          >
-            {task.name}
-          </span>
-        )}
-      </div>
-      <div className="flex items-center gap-2 select-none relative z-10">
-        {subtaskCount > 0 && (
-          <div
-            className={cn(
-              "grid place-items-center text-xs font-bold size-5 rounded-full transition-colors",
-              isCompleted
-                ? "text-green-600 dark:text-green-400"
-                : isSelected
-                ? "text-blue-700 dark:text-blue-300"
-                : isOpen
-                ? "text-neutral-700 dark:text-neutral-300"
-                : "text-neutral-500 dark:text-neutral-400"
-            )}
-          >
-            <span>{subtaskCount}</span>
-          </div>
         )}
       </div>
     </div>

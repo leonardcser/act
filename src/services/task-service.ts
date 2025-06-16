@@ -446,7 +446,8 @@ export class TaskService {
 
   static async generateDateFiltersFromDatabase(): Promise<DateFilter[]> {
     const distinctDates = await this.getAllDistinctDates();
-    return generateDateFiltersFromDates(distinctDates);
+    const uncompletedCounts = await this.getUncompletedTaskCountsByDate();
+    return generateDateFiltersFromDates(distinctDates, uncompletedCounts);
   }
 
   static async updateTasksDates(
@@ -515,5 +516,18 @@ export class TaskService {
     )) as Array<{ date_str: string }>;
 
     return dateRows.map((row) => new Date(row.date_str + "T00:00:00.000Z"));
+  }
+
+  static async getUncompletedTaskCountsByDate(): Promise<Map<string, number>> {
+    const database = await DatabaseService.getConnection();
+    const rows = (await database.select(
+      `SELECT DATE(date_created) as date_str, COUNT(id) as count FROM tasks WHERE completed = 0 GROUP BY date_str`
+    )) as Array<{ date_str: string; count: number }>;
+
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      counts.set(row.date_str, row.count);
+    }
+    return counts;
   }
 }

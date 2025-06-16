@@ -19,4 +19,5 @@ export interface DateFilter {
   startDate?: Date;
   endDate?: Date;
   label: string;
+  uncompletedTaskCount?: number;
 }

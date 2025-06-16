@@ -249,6 +249,20 @@ function DateFilterItem({
       >
         {filter.label}
       </span>
+      {filter.uncompletedTaskCount && filter.uncompletedTaskCount > 0 ? (
+        <div
+          className={cn(
+            "grid place-items-center text-xs font-bold size-5 rounded-full transition-colors",
+            isSelected
+              ? "text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50"
+              : isFocused
+              ? "text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800"
+              : "text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50"
+          )}
+        >
+          <span>{filter.uncompletedTaskCount}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
