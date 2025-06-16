@@ -6,6 +6,7 @@ export interface Task {
   completedAt?: Date;
   dateCreated: Date;
   order: number;
+  completedSubtasks?: number;
 }
 
 export interface Column {

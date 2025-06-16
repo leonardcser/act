@@ -1,5 +1,5 @@
 import React from "react";
-import { GripVertical } from "lucide-react";
+import { Folder, GripVertical } from "lucide-react";
 import { cn } from "../utils";
 import { Task } from "../types";
 import { useDrag } from "../contexts/drag-context";
@@ -287,7 +287,7 @@ export function TaskItem({
               : "text-neutral-300 dark:text-neutral-600 group-hover:text-neutral-400 dark:group-hover:text-neutral-500"
           )}
         >
-          <GripVertical size={16} />
+          {subtaskCount > 0 ? <Folder size={16} /> : <GripVertical size={16} />}
         </div>
 
         {/* Task name */}
@@ -328,19 +328,95 @@ export function TaskItem({
       <div className="flex items-center gap-2 select-none relative z-10">
         {/* Subtask count badge */}
         {subtaskCount > 0 && (
-          <div
-            className={cn(
-              "grid place-items-center text-xs font-bold size-5 rounded-full transition-colors",
-              isCompleted
-                ? "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50"
-                : isSelected
-                ? "text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/50"
-                : isOpen
-                ? "text-neutral-700 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800"
-                : "text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/50"
-            )}
-          >
-            <span>{subtaskCount}</span>
+          <div className="relative size-5">
+            <svg className="size-5" viewBox="0 0 36 36">
+              {/* Background circle */}
+              <circle
+                cx="18"
+                cy="18"
+                r="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                className={cn(
+                  "opacity-20",
+                  isCompleted
+                    ? "text-green-500 dark:text-green-400"
+                    : isSelected
+                    ? "text-blue-500 dark:text-blue-400"
+                    : isOpen
+                    ? "text-neutral-500 dark:text-neutral-400"
+                    : "text-neutral-300 dark:text-neutral-600"
+                )}
+              />
+              {/* Progress arc */}
+              <circle
+                cx="18"
+                cy="18"
+                r="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeDasharray={`${
+                  ((task.completedSubtasks || 0) / subtaskCount) * 100
+                } 100`}
+                strokeDashoffset="0"
+                strokeLinecap="round"
+                className={cn(
+                  "transform -rotate-90 origin-center transition-all duration-300",
+                  isCompleted
+                    ? "text-green-500 dark:text-green-400"
+                    : isSelected
+                    ? "text-blue-500 dark:text-blue-400"
+                    : isOpen
+                    ? "text-neutral-500 dark:text-neutral-400"
+                    : "text-neutral-300 dark:text-neutral-600"
+                )}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              {(task.completedSubtasks || 0) === subtaskCount ? (
+                <svg
+                  width="10"
+                  height="8"
+                  viewBox="0 0 10 8"
+                  fill="none"
+                  className={cn(
+                    "text-green-500 dark:text-green-400",
+                    isCompleted
+                      ? "text-green-500 dark:text-green-400"
+                      : isSelected
+                      ? "text-blue-500 dark:text-blue-400"
+                      : isOpen
+                      ? "text-neutral-500 dark:text-neutral-400"
+                      : "text-neutral-300 dark:text-neutral-600"
+                  )}
+                >
+                  <path
+                    d="M9 1L3.5 6.5L1 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : (
+                <span
+                  className={cn(
+                    "text-xs font-bold",
+                    isCompleted
+                      ? "text-green-600 dark:text-green-400"
+                      : isSelected
+                      ? "text-blue-700 dark:text-blue-300"
+                      : isOpen
+                      ? "text-neutral-700 dark:text-neutral-300"
+                      : "text-neutral-500 dark:text-neutral-400"
+                  )}
+                >
+                  {subtaskCount - (task.completedSubtasks || 0)}
+                </span>
+              )}
+            </div>
           </div>
         )}
 

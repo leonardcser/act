@@ -22,14 +22,35 @@ export class TaskService {
         : undefined,
       dateCreated: new Date(dbTask.date_created),
       order: dbTask.task_order,
+      completedSubtasks: dbTask.completed_subtasks || 0,
     };
   }
 
   private static async getAllTasks(): Promise<DatabaseTask[]> {
     const database = await DatabaseService.getConnection();
-    return await database.select(
-      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks ORDER BY parent_id, task_order ASC"
-    );
+    return await database.select(`
+      WITH RECURSIVE subtask_counts AS (
+        SELECT 
+          t.id,
+          COUNT(s.id) as total_subtasks,
+          SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
+        FROM tasks t
+        LEFT JOIN tasks s ON s.parent_id = t.id
+        GROUP BY t.id
+      )
+      SELECT 
+        t.id, 
+        t.name, 
+        t.parent_id, 
+        t.completed, 
+        t.completed_at, 
+        t.date_created, 
+        t.task_order,
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+      FROM tasks t
+      LEFT JOIN subtask_counts sc ON t.id = sc.id
+      ORDER BY t.parent_id, t.task_order ASC
+    `);
   }
 
   private static async getTasksByDate(
@@ -38,7 +59,30 @@ export class TaskService {
   ): Promise<DatabaseTask[]> {
     const database = await DatabaseService.getConnection();
     return await database.select(
-      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks WHERE date_created >= $1 AND date_created <= $2 ORDER BY parent_id, task_order ASC",
+      `
+      WITH RECURSIVE subtask_counts AS (
+        SELECT 
+          t.id,
+          COUNT(s.id) as total_subtasks,
+          SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
+        FROM tasks t
+        LEFT JOIN tasks s ON s.parent_id = t.id
+        GROUP BY t.id
+      )
+      SELECT 
+        t.id, 
+        t.name, 
+        t.parent_id, 
+        t.completed, 
+        t.completed_at, 
+        t.date_created, 
+        t.task_order,
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+      FROM tasks t
+      LEFT JOIN subtask_counts sc ON t.id = sc.id
+      WHERE t.date_created >= $1 AND t.date_created <= $2
+      ORDER BY t.parent_id, t.task_order ASC
+    `,
       [startDate, endDate]
     );
   }
@@ -60,7 +104,30 @@ export class TaskService {
   private static async getSubtasks(parentId: string): Promise<DatabaseTask[]> {
     const database = await DatabaseService.getConnection();
     return await database.select(
-      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks WHERE parent_id = $1 ORDER BY task_order ASC",
+      `
+      WITH RECURSIVE subtask_counts AS (
+        SELECT 
+          t.id,
+          COUNT(s.id) as total_subtasks,
+          SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
+        FROM tasks t
+        LEFT JOIN tasks s ON s.parent_id = t.id
+        GROUP BY t.id
+      )
+      SELECT 
+        t.id, 
+        t.name, 
+        t.parent_id, 
+        t.completed, 
+        t.completed_at, 
+        t.date_created, 
+        t.task_order,
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+      FROM tasks t
+      LEFT JOIN subtask_counts sc ON t.id = sc.id
+      WHERE t.parent_id = $1
+      ORDER BY t.task_order ASC
+    `,
       [parentId]
     );
   }
