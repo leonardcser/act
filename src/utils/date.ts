@@ -65,6 +65,55 @@ export const getTaskDates = (tasks: Task[]): Date[] => {
     .sort((a, b) => b.getTime() - a.getTime()); // Sort newest first
 };
 
+// Generate date filter options from distinct dates
+export const generateDateFiltersFromDates = (
+  distinctDates: Date[]
+): DateFilter[] => {
+  const filters: DateFilter[] = [];
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Always add Today filter
+  filters.push({
+    type: "today",
+    date: today,
+    label: "Today",
+  });
+
+  // Always add Tomorrow filter
+  filters.push({
+    type: "tomorrow",
+    date: tomorrow,
+    label: "Tomorrow",
+  });
+
+  // Add Yesterday filter if there are tasks for yesterday
+  const hasYesterdayTasks = distinctDates.some((date) => isYesterday(date));
+  if (hasYesterdayTasks) {
+    filters.push({
+      type: "yesterday",
+      date: yesterday,
+      label: "Yesterday",
+    });
+  }
+
+  // Add historical filters for other dates
+  distinctDates.forEach((date) => {
+    if (!isToday(date) && !isTomorrow(date) && !isYesterday(date)) {
+      filters.push({
+        type: "date",
+        date,
+        label: formatDateLabel(date),
+      });
+    }
+  });
+
+  return filters;
+};
+
 // Generate date filter options
 export const generateDateFilters = (tasks: Task[]): DateFilter[] => {
   const filters: DateFilter[] = [];

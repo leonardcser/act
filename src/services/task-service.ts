@@ -1,6 +1,9 @@
 import { Task, DateFilter } from "../types";
 import { DatabaseService, DatabaseTask } from "./database";
-import { generateDateFilters } from "../utils/date";
+import {
+  generateDateFilters,
+  generateDateFiltersFromDates,
+} from "../utils/date";
 import { v4 as uuidv4 } from "uuid";
 
 export class TaskService {
@@ -441,6 +444,11 @@ export class TaskService {
     return generateDateFilters(tasks);
   }
 
+  static async generateDateFiltersFromDatabase(): Promise<DateFilter[]> {
+    const distinctDates = await this.getAllDistinctDates();
+    return generateDateFiltersFromDates(distinctDates);
+  }
+
   static async updateTasksDates(
     taskIds: string | string[],
     newDate: Date
@@ -495,5 +503,17 @@ export class TaskService {
     }
 
     return allSubtasks;
+  }
+
+  static async getAllDistinctDates(): Promise<Date[]> {
+    const database = await DatabaseService.getConnection();
+
+    // Get all distinct created dates
+    const dateRows = (await database.select(
+      `SELECT DISTINCT DATE(date_created) as date_str FROM tasks
+       ORDER BY date_str DESC`
+    )) as Array<{ date_str: string }>;
+
+    return dateRows.map((row) => new Date(row.date_str + "T00:00:00.000Z"));
   }
 }

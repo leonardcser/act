@@ -21,10 +21,29 @@ export const useTasks = (): UseTasksReturn => {
   const [selectedDateFilter, setSelectedDateFilter] = useState<
     DateFilter | undefined
   >(undefined);
+  const [dateFilters, setDateFilters] = useState<DateFilter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  const dateFilters = TaskService.generateDateFilters(tasks);
+  // Load date filters from database independently
+  const loadDateFilters = useCallback(async () => {
+    try {
+      const filters = await TaskService.generateDateFiltersFromDatabase();
+      setDateFilters(filters);
+
+      // Set today as default filter on first load
+      if (!hasInitialized && !selectedDateFilter) {
+        const todayFilter = filters.find((f) => f.type === "today");
+        if (todayFilter) {
+          setSelectedDateFilter(todayFilter);
+        }
+        setHasInitialized(true);
+      }
+    } catch (err) {
+      console.error("Failed to load date filters:", err);
+    }
+  }, [hasInitialized, selectedDateFilter]);
 
   const loadTasks = useCallback(async (dateFilter?: DateFilter) => {
     try {
@@ -46,12 +65,14 @@ export const useTasks = (): UseTasksReturn => {
         await TaskService.createTask(name, parentId, date);
         // Reload tasks to get updated parent completion states
         await loadTasks(selectedDateFilter);
+        // Reload date filters in case new date was added
+        await loadDateFilters();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create task");
         console.error("Failed to create task:", err);
       }
     },
-    [loadTasks, selectedDateFilter]
+    [loadTasks, selectedDateFilter, loadDateFilters]
   );
 
   const updateTask = useCallback(async (id: string, name: string) => {
@@ -72,12 +93,14 @@ export const useTasks = (): UseTasksReturn => {
         await TaskService.deleteTasks(taskIds);
         // Reload tasks to get updated parent completion states
         await loadTasks(selectedDateFilter);
+        // Reload date filters in case dates were removed
+        await loadDateFilters();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to delete tasks");
         console.error("Failed to delete tasks:", err);
       }
     },
-    [loadTasks, selectedDateFilter]
+    [loadTasks, selectedDateFilter, loadDateFilters]
   );
 
   const toggleTask = useCallback(
@@ -85,33 +108,27 @@ export const useTasks = (): UseTasksReturn => {
       try {
         await TaskService.toggleTask(id);
         await loadTasks(selectedDateFilter);
+        // Reload date filters in case completion dates changed
+        await loadDateFilters();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to toggle task");
         console.error("Failed to toggle task:", err);
       }
     },
-    [loadTasks, selectedDateFilter]
+    [loadTasks, selectedDateFilter, loadDateFilters]
   );
 
-  // Load tasks on mount and when date filter changes
+  // Load date filters on mount
   useEffect(() => {
-    loadTasks(selectedDateFilter);
-  }, [loadTasks, selectedDateFilter]);
+    loadDateFilters();
+  }, [loadDateFilters]);
 
-  // Set default filter to "today" after tasks are loaded
+  // Load tasks when date filter changes or on initialization
   useEffect(() => {
-    if (
-      !loading &&
-      tasks.length > 0 &&
-      !selectedDateFilter &&
-      dateFilters.length > 0
-    ) {
-      const todayFilter = dateFilters.find((filter) => filter.type === "today");
-      if (todayFilter) {
-        setSelectedDateFilter(todayFilter);
-      }
+    if (hasInitialized) {
+      loadTasks(selectedDateFilter);
     }
-  }, [loading, tasks.length, selectedDateFilter, dateFilters]);
+  }, [loadTasks, selectedDateFilter, hasInitialized]);
 
   return {
     tasks,
