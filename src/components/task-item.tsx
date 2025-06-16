@@ -272,7 +272,7 @@ export function TaskItem({
     >
       <div
         className={cn(
-          "flex items-center gap-3",
+          "flex items-center gap-2",
           isEditing ? "flex-1" : "overflow-hidden"
         )}
       >
@@ -307,7 +307,7 @@ export function TaskItem({
           <span
             onClick={handleTaskNameClick}
             className={cn(
-              "text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10 truncate",
+              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10 truncate",
               isCompleted
                 ? isSelected
                   ? "line-through text-green-900 dark:text-green-100"
@@ -349,7 +349,7 @@ export function TaskItem({
           <button
             onClick={handleCheckboxClick}
             className={cn(
-              "flex shrink-0 items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
+              "flex shrink-0 items-center justify-center size-4 m-0.5 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
               isCompleted
                 ? "border-green-500 dark:border-green-400 text-white"
                 : isSelected
