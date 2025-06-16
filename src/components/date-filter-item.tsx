@@ -138,10 +138,12 @@ export function DateFilterItem({
       >
         {filter.label}
       </span>
-      {filter.uncompletedTaskCount && filter.uncompletedTaskCount > 0 ? (
+      {filter.totalTaskCount &&
+      filter.totalTaskCount > 0 &&
+      filter.completedTaskCount !== filter.totalTaskCount ? (
         <ProgressCircle
-          total={filter.uncompletedTaskCount}
-          completed={0}
+          total={filter.totalTaskCount}
+          completed={filter.completedTaskCount || 0}
           isSelected={isSelected}
           size={20}
           className={cn(

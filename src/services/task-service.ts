@@ -1,9 +1,6 @@
 import { Task, DateFilter } from "../types";
 import { DatabaseService, DatabaseTask } from "./database";
-import {
-  generateDateFilters,
-  generateDateFiltersFromDates,
-} from "../utils/date";
+import { generateDateFiltersFromDates } from "../utils/date";
 import { v4 as uuidv4 } from "uuid";
 
 export class TaskService {
@@ -507,14 +504,10 @@ export class TaskService {
     }
   }
 
-  static generateDateFilters(tasks: Task[]): DateFilter[] {
-    return generateDateFilters(tasks);
-  }
-
   static async generateDateFiltersFromDatabase(): Promise<DateFilter[]> {
     const distinctDates = await this.getAllDistinctDates();
-    const uncompletedCounts = await this.getUncompletedTaskCountsByDate();
-    return generateDateFiltersFromDates(distinctDates, uncompletedCounts);
+    const taskCounts = await this.getTaskCountsByDate();
+    return generateDateFiltersFromDates(distinctDates, taskCounts);
   }
 
   static async updateTasksDates(
@@ -585,15 +578,29 @@ export class TaskService {
     return dateRows.map((row) => new Date(row.date_str + "T00:00:00.000Z"));
   }
 
-  static async getUncompletedTaskCountsByDate(): Promise<Map<string, number>> {
+  static async getTaskCountsByDate(): Promise<
+    Map<string, { total: number; completed: number }>
+  > {
     const database = await DatabaseService.getConnection();
     const rows = (await database.select(
-      `SELECT DATE(date_created) as date_str, COUNT(id) as count FROM tasks WHERE completed = 0 GROUP BY date_str`
-    )) as Array<{ date_str: string; count: number }>;
+      `SELECT 
+        DATE(date_created) as date_str, 
+        COUNT(id) as total_count,
+        SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed_count
+       FROM tasks 
+       GROUP BY date_str`
+    )) as Array<{
+      date_str: string;
+      total_count: number;
+      completed_count: number;
+    }>;
 
-    const counts = new Map<string, number>();
+    const counts = new Map<string, { total: number; completed: number }>();
     for (const row of rows) {
-      counts.set(row.date_str, row.count);
+      counts.set(row.date_str, {
+        total: row.total_count,
+        completed: row.completed_count,
+      });
     }
     return counts;
   }

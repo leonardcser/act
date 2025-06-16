@@ -68,7 +68,7 @@ export const getTaskDates = (tasks: Task[]): Date[] => {
 // Generate date filter options from distinct dates
 export const generateDateFiltersFromDates = (
   distinctDates: Date[],
-  uncompletedCounts: Map<string, number>
+  taskCounts: Map<string, { total: number; completed: number }>
 ): DateFilter[] => {
   const filters: DateFilter[] = [];
   const today = new Date();
@@ -79,12 +79,20 @@ export const generateDateFiltersFromDates = (
 
   const toYYYYMMDD = (d: Date) => d.toISOString().split("T")[0];
 
+  const getCounts = (date: Date) => {
+    const counts = taskCounts.get(toYYYYMMDD(date));
+    return {
+      totalTaskCount: counts?.total || 0,
+      completedTaskCount: counts?.completed || 0,
+    };
+  };
+
   // Always add Today filter
   filters.push({
     type: "today",
     date: today,
     label: "Today",
-    uncompletedTaskCount: uncompletedCounts.get(toYYYYMMDD(today)) || 0,
+    ...getCounts(today),
   });
 
   // Always add Tomorrow filter
@@ -92,7 +100,7 @@ export const generateDateFiltersFromDates = (
     type: "tomorrow",
     date: tomorrow,
     label: "Tomorrow",
-    uncompletedTaskCount: uncompletedCounts.get(toYYYYMMDD(tomorrow)) || 0,
+    ...getCounts(tomorrow),
   });
 
   // Add Yesterday filter if there are tasks for yesterday
@@ -102,7 +110,7 @@ export const generateDateFiltersFromDates = (
       type: "yesterday",
       date: yesterday,
       label: "Yesterday",
-      uncompletedTaskCount: uncompletedCounts.get(toYYYYMMDD(yesterday)) || 0,
+      ...getCounts(yesterday),
     });
   }
 
@@ -113,57 +121,7 @@ export const generateDateFiltersFromDates = (
         type: "date",
         date,
         label: formatDateLabel(date),
-        uncompletedTaskCount: uncompletedCounts.get(toYYYYMMDD(date)) || 0,
-      });
-    }
-  });
-
-  return filters;
-};
-
-// Generate date filter options
-export const generateDateFilters = (tasks: Task[]): DateFilter[] => {
-  const filters: DateFilter[] = [];
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Always add Today filter
-  filters.push({
-    type: "today",
-    date: today,
-    label: "Today",
-  });
-
-  // Always add Tomorrow filter
-  filters.push({
-    type: "tomorrow",
-    date: tomorrow,
-    label: "Tomorrow",
-  });
-
-  // Get all unique dates from tasks
-  const uniqueDates = getTaskDates(tasks);
-
-  // Add Yesterday filter only if there are tasks for yesterday
-  const hasYesterdayTasks = uniqueDates.some((date) => isYesterday(date));
-  if (hasYesterdayTasks) {
-    filters.push({
-      type: "yesterday",
-      date: yesterday,
-      label: "Yesterday",
-    });
-  }
-
-  // Add historical filters for other dates
-  uniqueDates.forEach((date) => {
-    if (!isToday(date) && !isTomorrow(date) && !isYesterday(date)) {
-      filters.push({
-        type: "date",
-        date,
-        label: formatDateLabel(date),
+        ...getCounts(date),
       });
     }
   });
