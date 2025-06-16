@@ -270,7 +270,12 @@ export function TaskItem({
         !isEditing && "cursor-grab active:cursor-grabbing"
       )}
     >
-      <div className={cn("flex items-center gap-3", isEditing && "flex-1")}>
+      <div
+        className={cn(
+          "flex items-center gap-3",
+          isEditing ? "flex-1" : "overflow-hidden"
+        )}
+      >
         {subtaskCount > 0 ? (
           <div
             className={cn(
@@ -290,7 +295,7 @@ export function TaskItem({
           <button
             onClick={handleCheckboxClick}
             className={cn(
-              "flex items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer relative z-10",
+              "flex shrink-0 items-center justify-center w-4 h-4 border-[1.5px] rounded transition-all duration-200 cursor-pointer relative z-10",
               isCompleted
                 ? "border-green-500 dark:border-green-400 text-white"
                 : isSelected
@@ -333,7 +338,7 @@ export function TaskItem({
           <span
             onClick={handleTaskNameClick}
             className={cn(
-              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10",
+              "ms-1 text-sm font-medium transition-all duration-300 cursor-text select-none relative z-10 truncate",
               isCompleted
                 ? isSelected
                   ? "line-through text-green-900 dark:text-green-100"
