@@ -3,6 +3,8 @@ import { Folder, GripVertical } from "lucide-react";
 import { cn } from "../utils";
 import { Task } from "../types";
 import { useDrag } from "../contexts/drag-context";
+import { Checkmark } from "./checkmark";
+import { ProgressCircle } from "./progress-circle";
 
 interface TaskItemProps {
   task: Task;
@@ -328,96 +330,14 @@ export function TaskItem({
       <div className="flex items-center gap-2 select-none relative z-10">
         {/* Subtask count badge */}
         {subtaskCount > 0 && (
-          <div className="relative size-5">
-            <svg className="size-5" viewBox="0 0 36 36">
-              {/* Background circle */}
-              <circle
-                cx="18"
-                cy="18"
-                r="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                className={cn(
-                  "opacity-20",
-                  isCompleted
-                    ? "text-green-500 dark:text-green-400"
-                    : isSelected
-                    ? "text-blue-500 dark:text-blue-400"
-                    : isOpen
-                    ? "text-neutral-500 dark:text-neutral-400"
-                    : "text-neutral-300 dark:text-neutral-600"
-                )}
-              />
-              {/* Progress arc */}
-              <circle
-                cx="18"
-                cy="18"
-                r="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeDasharray={`${
-                  ((task.completedSubtasks || 0) / subtaskCount) * 100
-                } 100`}
-                strokeDashoffset="0"
-                strokeLinecap="round"
-                className={cn(
-                  "transform -rotate-90 origin-center transition-all duration-300",
-                  isCompleted
-                    ? "text-green-500 dark:text-green-400"
-                    : isSelected
-                    ? "text-blue-500 dark:text-blue-400"
-                    : isOpen
-                    ? "text-neutral-500 dark:text-neutral-400"
-                    : "text-neutral-300 dark:text-neutral-600"
-                )}
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              {(task.completedSubtasks || 0) === subtaskCount ? (
-                <svg
-                  width="10"
-                  height="8"
-                  viewBox="0 0 10 8"
-                  fill="none"
-                  className={cn(
-                    "text-green-500 dark:text-green-400",
-                    isCompleted
-                      ? "text-green-500 dark:text-green-400"
-                      : isSelected
-                      ? "text-blue-500 dark:text-blue-400"
-                      : isOpen
-                      ? "text-neutral-500 dark:text-neutral-400"
-                      : "text-neutral-300 dark:text-neutral-600"
-                  )}
-                >
-                  <path
-                    d="M9 1L3.5 6.5L1 4"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : (
-                <span
-                  className={cn(
-                    "text-xs font-bold",
-                    isCompleted
-                      ? "text-green-600 dark:text-green-400"
-                      : isSelected
-                      ? "text-blue-700 dark:text-blue-300"
-                      : isOpen
-                      ? "text-neutral-700 dark:text-neutral-300"
-                      : "text-neutral-500 dark:text-neutral-400"
-                  )}
-                >
-                  {subtaskCount - (task.completedSubtasks || 0)}
-                </span>
-              )}
-            </div>
-          </div>
+          <ProgressCircle
+            total={subtaskCount}
+            completed={task.completedSubtasks || 0}
+            isCompleted={isCompleted}
+            isSelected={isSelected}
+            isOpen={isOpen}
+            size={20}
+          />
         )}
 
         {/* Checkbox */}
@@ -433,23 +353,11 @@ export function TaskItem({
                 : "border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500"
             )}
           >
-            {isCompleted && (
-              <svg
-                width="10"
-                height="8"
-                viewBox="0 0 10 8"
-                fill="none"
-                className="text-green-500 dark:text-green-400"
-              >
-                <path
-                  d="M9 1L3.5 6.5L1 4"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
+            <Checkmark
+              isCompleted={isCompleted}
+              isSelected={isSelected}
+              isOpen={isOpen}
+            />
           </button>
         )}
       </div>
