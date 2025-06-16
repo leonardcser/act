@@ -115,6 +115,13 @@ function App() {
       taskManager.setSelectedDateFilter(filter);
       taskManager.appState.setFocusedDateIndex(index);
       taskManager.appState.setSelectedTasks(new Set()); // Clear task selection
+
+      // When date filter changes, reset columns to the root view
+      if (taskManager.appState.columns.length > 1) {
+        // This effectively closes all subtask columns
+        taskManager.appState.closeSubtasksFromColumn(0);
+        taskManager.appState.setFocusedTaskIndex(0);
+      }
     },
     [taskManager]
   );
