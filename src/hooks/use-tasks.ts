@@ -14,6 +14,7 @@ export interface UseTasksReturn {
   deleteTasks: (taskIds: string | string[]) => Promise<void>;
   toggleTask: (id: string) => Promise<void>;
   loadTasks: (dateFilter?: DateFilter) => Promise<void>;
+  loadDateFilters: () => Promise<void>;
 }
 
 export const useTasks = (): UseTasksReturn => {
@@ -142,5 +143,6 @@ export const useTasks = (): UseTasksReturn => {
     deleteTasks,
     toggleTask,
     loadTasks,
+    loadDateFilters,
   };
 };

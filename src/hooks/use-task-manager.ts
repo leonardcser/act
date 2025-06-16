@@ -135,6 +135,8 @@ export const useTaskManager = (): UseTaskManagerReturn => {
       await TaskService.updateTasksDates(taskIds, newDate);
       // Refresh tasks to get updated dates
       await tasks.loadTasks(tasks.selectedDateFilter);
+      // Refresh date filters for counts
+      await tasks.loadDateFilters();
     },
     [tasks]
   );
