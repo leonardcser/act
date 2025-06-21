@@ -48,12 +48,11 @@ export class TaskService {
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
-      WHERE (t.due_date >= $1 OR t.completed = 0)
       ORDER BY 
-        CASE WHEN t.due_date < $1 AND t.completed = 0 THEN 0 ELSE 1 END,
+        DATE(t.due_date) ASC,
+        t.completed ASC,
         t.parent_id, 
         t.task_order ASC,
-        CASE WHEN t.due_date < $1 AND t.completed = 0 THEN t.due_date END DESC,
         t.created_at ASC
     `,
       [startOfToday]
@@ -70,7 +69,21 @@ export class TaskService {
 
     return await database.select(
       `
-      WITH RECURSIVE subtask_counts AS (
+      WITH RECURSIVE 
+      -- Find all tasks that match the date criteria
+      matching_tasks AS (
+        SELECT id, parent_id FROM tasks 
+        WHERE due_date >= $1 AND due_date <= $2
+      ),
+      -- Recursively find all parent tasks
+      parent_hierarchy AS (
+        SELECT id, parent_id FROM matching_tasks
+        UNION ALL
+        SELECT t.id, t.parent_id FROM tasks t
+        INNER JOIN parent_hierarchy ph ON t.id = ph.parent_id
+      ),
+      -- Calculate subtask counts for all relevant tasks
+      subtask_counts AS (
         SELECT 
           t.id,
           COUNT(s.id) as total_subtasks,
@@ -91,7 +104,7 @@ export class TaskService {
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
-      WHERE t.due_date >= $1 AND t.due_date <= $2
+      WHERE t.id IN (SELECT id FROM parent_hierarchy)
       ORDER BY 
         CASE WHEN t.due_date < $3 AND t.completed = 0 THEN 0 ELSE 1 END,
         t.parent_id, 
@@ -112,7 +125,21 @@ export class TaskService {
     const database = await DatabaseService.getConnection();
     return await database.select(
       `
-      WITH RECURSIVE subtask_counts AS (
+      WITH RECURSIVE 
+      -- Find all tasks that match the date criteria (today's tasks + overdue incomplete)
+      matching_tasks AS (
+        SELECT id, parent_id FROM tasks 
+        WHERE (due_date >= $1 AND due_date <= $2) OR (due_date < $1 AND completed = 0)
+      ),
+      -- Recursively find all parent tasks
+      parent_hierarchy AS (
+        SELECT id, parent_id FROM matching_tasks
+        UNION ALL
+        SELECT t.id, t.parent_id FROM tasks t
+        INNER JOIN parent_hierarchy ph ON t.id = ph.parent_id
+      ),
+      -- Calculate subtask counts for all relevant tasks
+      subtask_counts AS (
         SELECT 
           t.id,
           COUNT(s.id) as total_subtasks,
@@ -133,7 +160,7 @@ export class TaskService {
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
-      WHERE (t.due_date >= $1 AND t.due_date <= $2) OR (t.due_date < $1 AND t.completed = 0)
+      WHERE t.id IN (SELECT id FROM parent_hierarchy)
       ORDER BY 
         CASE WHEN t.due_date < $1 AND t.completed = 0 THEN 0 ELSE 1 END,
         t.parent_id, 
@@ -167,7 +194,21 @@ export class TaskService {
     const database = await DatabaseService.getConnection();
     return await database.select(
       `
-      WITH RECURSIVE subtask_counts AS (
+      WITH RECURSIVE 
+      -- Find all tasks that match the date criteria (tomorrow's tasks + overdue incomplete)
+      matching_tasks AS (
+        SELECT id, parent_id FROM tasks 
+        WHERE (due_date >= $1 AND due_date <= $2) OR (due_date < $3 AND completed = 0)
+      ),
+      -- Recursively find all parent tasks
+      parent_hierarchy AS (
+        SELECT id, parent_id FROM matching_tasks
+        UNION ALL
+        SELECT t.id, t.parent_id FROM tasks t
+        INNER JOIN parent_hierarchy ph ON t.id = ph.parent_id
+      ),
+      -- Calculate subtask counts for all relevant tasks
+      subtask_counts AS (
         SELECT 
           t.id,
           COUNT(s.id) as total_subtasks,
@@ -188,7 +229,7 @@ export class TaskService {
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
-      WHERE (t.due_date >= $1 AND t.due_date <= $2) OR (t.due_date < $3 AND t.completed = 0)
+      WHERE t.id IN (SELECT id FROM parent_hierarchy)
       ORDER BY 
         CASE WHEN t.due_date < $3 AND t.completed = 0 THEN 0 ELSE 1 END,
         t.parent_id, 
