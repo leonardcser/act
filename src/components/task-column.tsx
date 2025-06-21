@@ -12,7 +12,6 @@ interface TaskColumnProps {
   selectedColumn: number;
   selectedDateFilter?: DateFilter;
   isTaskOpen: (taskId: string) => boolean;
-  getSubtaskCount: (taskId: string) => number;
   getAllSubtasks: (taskId: string) => Task[];
   onColumnClick: (columnIndex: number, e: React.MouseEvent) => void;
   onTaskClick: (task: Task, columnIndex: number, e: React.MouseEvent) => void;
@@ -35,7 +34,6 @@ export function TaskColumn({
   selectedTasks,
   selectedColumn,
   isTaskOpen,
-  getSubtaskCount,
   getAllSubtasks,
   onColumnClick,
   onTaskClick,
@@ -276,7 +274,7 @@ export function TaskColumn({
                       columnIndex={columnIndex}
                       isSelected={selectedTasks.has(task.id)}
                       isOpen={isTaskOpen(task.id)}
-                      subtaskCount={getSubtaskCount(task.id)}
+                      subtaskCount={task.totalSubtasks}
                       selectedTasks={selectedTasks}
                       openTaskIds={openTaskIds}
                       onTaskClick={onTaskClick}

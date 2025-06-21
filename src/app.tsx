@@ -426,7 +426,6 @@ function App() {
                   selectedTasks={taskManager.appState.selectedTasks}
                   selectedColumn={taskManager.appState.selectedColumn}
                   isTaskOpen={taskManager.appState.isTaskOpen}
-                  getSubtaskCount={taskManager.getSubtaskCountFromState}
                   getAllSubtasks={taskManager.getAllSubtasks}
                   onColumnClick={handleColumnClick}
                   onTaskClick={handleTaskClick}

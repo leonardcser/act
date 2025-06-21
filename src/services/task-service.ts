@@ -17,6 +17,7 @@ export class TaskService {
       dueDate: new Date(dbTask.due_date),
       order: dbTask.task_order,
       completedSubtasks: dbTask.completed_subtasks || 0,
+      totalSubtasks: dbTask.total_subtasks || 0,
     };
   }
 
@@ -45,7 +46,8 @@ export class TaskService {
         t.created_at, 
         t.due_date,
         t.task_order,
-        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks,
+        COALESCE(sc.total_subtasks, 0) as total_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
       ORDER BY 
@@ -82,14 +84,14 @@ export class TaskService {
         SELECT t.id, t.parent_id FROM tasks t
         INNER JOIN parent_hierarchy ph ON t.id = ph.parent_id
       ),
-      -- Calculate subtask counts for all relevant tasks
+      -- Calculate subtask counts for all relevant tasks, only counting subtasks that match date criteria
       subtask_counts AS (
         SELECT 
           t.id,
           COUNT(s.id) as total_subtasks,
           SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
         FROM tasks t
-        LEFT JOIN tasks s ON s.parent_id = t.id
+        LEFT JOIN tasks s ON s.parent_id = t.id AND s.due_date >= $1 AND s.due_date <= $2
         GROUP BY t.id
       )
       SELECT 
@@ -101,7 +103,8 @@ export class TaskService {
         t.created_at, 
         t.due_date,
         t.task_order,
-        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks,
+        COALESCE(sc.total_subtasks, 0) as total_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
       WHERE t.id IN (SELECT id FROM parent_hierarchy)
@@ -138,14 +141,14 @@ export class TaskService {
         SELECT t.id, t.parent_id FROM tasks t
         INNER JOIN parent_hierarchy ph ON t.id = ph.parent_id
       ),
-      -- Calculate subtask counts for all relevant tasks
+      -- Calculate subtask counts for all relevant tasks, only counting subtasks that match date criteria
       subtask_counts AS (
         SELECT 
           t.id,
           COUNT(s.id) as total_subtasks,
           SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
         FROM tasks t
-        LEFT JOIN tasks s ON s.parent_id = t.id
+        LEFT JOIN tasks s ON s.parent_id = t.id AND ((s.due_date >= $1 AND s.due_date <= $2) OR (s.due_date < $1 AND s.completed = 0))
         GROUP BY t.id
       )
       SELECT 
@@ -157,7 +160,8 @@ export class TaskService {
         t.created_at, 
         t.due_date,
         t.task_order,
-        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks,
+        COALESCE(sc.total_subtasks, 0) as total_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
       WHERE t.id IN (SELECT id FROM parent_hierarchy)
@@ -214,7 +218,7 @@ export class TaskService {
           COUNT(s.id) as total_subtasks,
           SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
         FROM tasks t
-        LEFT JOIN tasks s ON s.parent_id = t.id
+        LEFT JOIN tasks s ON s.parent_id = t.id AND ((s.due_date >= $1 AND s.due_date <= $2) OR (s.due_date < $3 AND s.completed = 0))
         GROUP BY t.id
       )
       SELECT 
@@ -226,7 +230,8 @@ export class TaskService {
         t.created_at, 
         t.due_date,
         t.task_order,
-        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks,
+        COALESCE(sc.total_subtasks, 0) as total_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
       WHERE t.id IN (SELECT id FROM parent_hierarchy)
@@ -263,7 +268,8 @@ export class TaskService {
         t.created_at, 
         t.due_date,
         t.task_order,
-        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks,
+        COALESCE(sc.total_subtasks, 0) as total_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
       WHERE t.parent_id = $1
@@ -524,10 +530,6 @@ export class TaskService {
     }
 
     return allSubtasks;
-  }
-
-  static getSubtaskCount(tasks: Task[], taskId: string): number {
-    return tasks.filter((task) => task.parentId === taskId).length;
   }
 
   static async reorderTasks(

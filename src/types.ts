@@ -7,7 +7,8 @@ export interface Task {
   createdAt: Date;
   dueDate: Date;
   order: number;
-  completedSubtasks?: number;
+  completedSubtasks: number;
+  totalSubtasks: number;
 }
 
 export interface Column {

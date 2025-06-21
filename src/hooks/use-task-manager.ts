@@ -19,7 +19,6 @@ export interface UseTaskManagerReturn {
   getTasksByParentId: (parentId?: string) => Task[];
   getTaskById: (id: string) => Task | undefined;
   getAllSubtasks: (taskId: string) => Task[];
-  getSubtaskCountFromState: (taskId: string) => number;
 
   // Task actions
   updateTaskName: (taskId: string, newName: string) => void;
@@ -66,13 +65,6 @@ export const useTaskManager = (): UseTaskManagerReturn => {
   const getAllSubtasks = useCallback(
     (taskId: string): Task[] => {
       return TaskService.getAllSubtasks(tasks.tasks, taskId);
-    },
-    [tasks.tasks]
-  );
-
-  const getSubtaskCountFromState = useCallback(
-    (taskId: string): number => {
-      return TaskService.getSubtaskCount(tasks.tasks, taskId);
     },
     [tasks.tasks]
   );
@@ -156,7 +148,6 @@ export const useTaskManager = (): UseTaskManagerReturn => {
     getTasksByParentId,
     getTaskById,
     getAllSubtasks,
-    getSubtaskCountFromState,
 
     // Task actions
     updateTaskName,
