@@ -34,6 +34,13 @@ export const isYesterday = (date: Date): boolean => {
 
 // Format date for display (e.g., "Dec 15" or "Dec 15, 2023" if not current year)
 export const formatDateLabel = (date: Date): string => {
+  if (isToday(date)) {
+    return "Today";
+  } else if (isTomorrow(date)) {
+    return "Tomorrow";
+  } else if (isYesterday(date)) {
+    return "Yesterday";
+  }
   const today = new Date();
   const isCurrentYear = date.getFullYear() === today.getFullYear();
 
@@ -46,13 +53,13 @@ export const formatDateLabel = (date: Date): string => {
   return date.toLocaleDateString("en-US", options);
 };
 
-// Get all unique dates from tasks (created or completed)
+// Get all unique dates from tasks (due or completed)
 export const getTaskDates = (tasks: Task[]): Date[] => {
   const dates = new Set<string>();
 
   tasks.forEach((task) => {
-    // Add creation date
-    dates.add(task.dateCreated.toDateString());
+    // Add due date (this is what we filter by now)
+    dates.add(task.dueDate.toDateString());
 
     // Add completion date if exists
     if (task.completedAt) {
@@ -86,6 +93,22 @@ export const generateDateFiltersFromDates = (
       completedTaskCount: counts?.completed || 0,
     };
   };
+
+  // Calculate total counts across all dates
+  let totalAllTasks = 0;
+  let completedAllTasks = 0;
+  taskCounts.forEach((counts) => {
+    totalAllTasks += counts.total;
+    completedAllTasks += counts.completed;
+  });
+
+  // Add "All" filter at the very top
+  filters.push({
+    type: "all",
+    label: "All",
+    totalTaskCount: totalAllTasks,
+    completedTaskCount: completedAllTasks,
+  });
 
   // Always add Today filter
   filters.push({
@@ -135,6 +158,8 @@ export const getDateFromFilter = (filter?: DateFilter): Date | undefined => {
 
   const today = new Date();
   switch (filter.type) {
+    case "all":
+      return undefined; // All filter doesn't correspond to a specific date
     case "today":
       return today;
     case "tomorrow":

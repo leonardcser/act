@@ -21,7 +21,6 @@ export interface UseAppStateReturn {
 
   // Modal state
   isModalOpen: boolean;
-  newTaskName: string;
 
   // Selection actions
   setSelectedTasks: (tasks: Set<string>) => void;
@@ -55,7 +54,6 @@ export interface UseAppStateReturn {
   isTaskOpen: (taskId: string) => boolean;
 
   // Modal actions
-  setNewTaskName: (name: string) => void;
   openModal: () => void;
   closeModal: () => void;
 }
@@ -79,7 +77,6 @@ export const useAppState = (): UseAppStateReturn => {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newTaskName, setNewTaskName] = useState("");
 
   // Selection actions
   const clearSelection = useCallback(() => {
@@ -194,7 +191,6 @@ export const useAppState = (): UseAppStateReturn => {
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
-    setNewTaskName("");
   }, []);
 
   return {
@@ -212,7 +208,6 @@ export const useAppState = (): UseAppStateReturn => {
 
     // Modal state
     isModalOpen,
-    newTaskName,
 
     // Selection actions
     setSelectedTasks,
@@ -235,7 +230,6 @@ export const useAppState = (): UseAppStateReturn => {
     isTaskOpen,
 
     // Modal actions
-    setNewTaskName,
     openModal,
     closeModal,
   };

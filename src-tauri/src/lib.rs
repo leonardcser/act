@@ -15,6 +15,12 @@ pub fn run() {
             sql: include_str!("../migrations/002_add_order.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "rename_date_created_add_due_date",
+            sql: include_str!("../migrations/003_rename_date_created_add_due_date.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     // Determine the database path before building the app

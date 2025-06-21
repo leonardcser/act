@@ -151,6 +151,18 @@ function App() {
     [taskManager]
   );
 
+  const handleTaskDueDateUpdate = useCallback(
+    async (task: Task, newDueDate: string) => {
+      try {
+        const dueDate = new Date(newDueDate);
+        await taskManager.updateTasksDates(task.id, dueDate);
+      } catch (error) {
+        console.error("Failed to update task due date:", error);
+      }
+    },
+    [taskManager]
+  );
+
   const handleTaskDrop = useCallback(
     async (draggedTaskIds: string[], targetTaskId: string) => {
       try {
@@ -420,6 +432,7 @@ function App() {
                   onColumnClick={handleColumnClick}
                   onTaskClick={handleTaskClick}
                   onTaskUpdate={handleTaskUpdate}
+                  onTaskDueDateUpdate={handleTaskDueDateUpdate}
                   onTaskToggle={taskManager.toggleTask}
                   onTaskDrop={handleTaskDrop}
                   onColumnDrop={handleColumnDrop}
@@ -432,10 +445,8 @@ function App() {
 
         <ActionBar
           isOpen={taskManager.appState.isModalOpen}
-          newTaskName={taskManager.appState.newTaskName}
-          setNewTaskName={taskManager.appState.setNewTaskName}
-          onAddTask={() => {
-            if (!taskManager.appState.newTaskName.trim()) return;
+          onAddTask={(taskName: string, dueDate: string) => {
+            if (!taskName.trim()) return;
 
             let parentTaskId: string | undefined;
 
@@ -450,14 +461,17 @@ function App() {
                 ]?.parentTaskId;
             }
 
-            // Get date from selected filter
-            const taskDate = getDateFromFilter(taskManager.selectedDateFilter);
+            // Determine the due date to use
+            let taskDate: Date | undefined;
+            if (dueDate) {
+              // Use the date from the date picker if one was selected
+              taskDate = new Date(dueDate);
+            } else {
+              // Fall back to date from selected filter if no explicit date was set
+              taskDate = getDateFromFilter(taskManager.selectedDateFilter);
+            }
 
-            taskManager.addTask(
-              taskManager.appState.newTaskName,
-              parentTaskId,
-              taskDate
-            );
+            taskManager.addTask(taskName, parentTaskId, taskDate);
             taskManager.appState.closeModal();
           }}
           onClose={taskManager.appState.closeModal}

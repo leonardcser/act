@@ -4,7 +4,8 @@ export interface Task {
   parentId?: string;
   completed: boolean;
   completedAt?: Date;
-  dateCreated: Date;
+  createdAt: Date;
+  dueDate: Date;
   order: number;
   completedSubtasks?: number;
 }
@@ -15,7 +16,7 @@ export interface Column {
 }
 
 export interface DateFilter {
-  type: "today" | "tomorrow" | "yesterday" | "date" | "range";
+  type: "all" | "today" | "tomorrow" | "yesterday" | "date" | "range";
   date?: Date;
   startDate?: Date;
   endDate?: Date;

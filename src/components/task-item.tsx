@@ -1,10 +1,16 @@
 import React from "react";
-import { Folder, GripVertical } from "lucide-react";
 import { cn } from "../utils";
 import { Task } from "../types";
 import { useDrag } from "../contexts/drag-context";
 import { Checkmark } from "./checkmark";
 import { ProgressCircle } from "./progress-circle";
+import { DatePicker } from "./date-picker";
+import {
+  formatDateLabel,
+  isToday,
+  isTomorrow,
+  isYesterday,
+} from "../utils/date";
 
 interface TaskItemProps {
   task: Task;
@@ -16,6 +22,7 @@ interface TaskItemProps {
   openTaskIds: Set<string>;
   onTaskClick: (task: Task, columnIndex: number, e: React.MouseEvent) => void;
   onTaskUpdate: (task: Task, newName: string) => void;
+  onTaskDueDateUpdate: (task: Task, newDueDate: string) => void;
   onTaskToggle: (taskId: string) => void;
   onTaskDrop: (draggedTaskIds: string[], targetTaskId: string) => void;
   getAllSubtasks: (taskId: string) => Task[];
@@ -33,6 +40,7 @@ export function TaskItem({
   selectedTasks,
   onTaskClick,
   onTaskUpdate,
+  onTaskDueDateUpdate,
   onTaskToggle,
   onTaskDrop,
   getAllSubtasks,
@@ -53,6 +61,53 @@ export function TaskItem({
   const [isDragOver, setIsDragOver] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const isCompleted = task.completed;
+
+  // Format due date for display
+  const formatDueDate = (
+    dueDate: Date
+  ): { text: string; isOverdue: boolean; color: string } => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (isToday(dueDate)) {
+      return {
+        text: "Today",
+        isOverdue: false,
+        color: "text-blue-600 dark:text-blue-400",
+      };
+    } else if (isTomorrow(dueDate)) {
+      return {
+        text: "Tomorrow",
+        isOverdue: false,
+        color: "text-neutral-600 dark:text-neutral-400",
+      };
+    } else if (isYesterday(dueDate)) {
+      const isOverdue = !isCompleted;
+      return {
+        text: isOverdue ? "Overdue" : "Yesterday",
+        isOverdue,
+        color: isOverdue
+          ? "text-red-600 dark:text-red-400"
+          : "text-neutral-600 dark:text-neutral-400",
+      };
+    } else {
+      const isOverdue = dueDate < today && !isCompleted;
+      return {
+        text: isOverdue ? "Overdue" : formatDateLabel(dueDate),
+        isOverdue,
+        color: isOverdue
+          ? "text-red-600 dark:text-red-400"
+          : "text-neutral-600 dark:text-neutral-400",
+      };
+    }
+  };
+
+  // Calculate if the task is overdue
+  const isOverdue = React.useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return task.dueDate < today && !isCompleted;
+  }, [task.dueDate, isCompleted]);
 
   React.useEffect(() => {
     setInputValue(task.name);
@@ -278,19 +333,38 @@ export function TaskItem({
           isEditing ? "flex-1" : "overflow-hidden"
         )}
       >
-        {/* Drag handle */}
-        <div
-          className={cn(
-            "transition-colors relative z-10 cursor-grab active:cursor-grabbing",
-            isCompleted
-              ? "text-green-400 dark:text-green-500"
-              : isSelected
-              ? "text-blue-500 dark:text-blue-400"
-              : "text-neutral-300 dark:text-neutral-600 group-hover:text-neutral-400 dark:group-hover:text-neutral-500"
-          )}
-        >
-          {subtaskCount > 0 ? <Folder size={16} /> : <GripVertical size={16} />}
-        </div>
+        {/* Subtask count badge */}
+        {subtaskCount > 0 && (
+          <ProgressCircle
+            total={subtaskCount}
+            completed={task.completedSubtasks || 0}
+            isCompleted={isCompleted}
+            isSelected={isSelected}
+            isOpen={isOpen}
+            size={20}
+          />
+        )}
+
+        {/* Checkbox */}
+        {subtaskCount === 0 && (
+          <button
+            onClick={handleCheckboxClick}
+            className={cn(
+              "flex shrink-0 items-center justify-center size-4 m-0.5 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
+              isCompleted
+                ? "border-green-500 dark:border-green-400 text-white"
+                : isSelected
+                ? "border-blue-600 dark:border-blue-400 hover:border-blue-700 dark:hover:border-blue-300"
+                : "border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500"
+            )}
+          >
+            <Checkmark
+              isCompleted={isCompleted}
+              isSelected={isSelected}
+              isOpen={isOpen}
+            />
+          </button>
+        )}
 
         {/* Task name */}
         {isEditing ? (
@@ -328,38 +402,13 @@ export function TaskItem({
 
       {/* Right side items */}
       <div className="flex items-center gap-2 select-none relative z-10">
-        {/* Subtask count badge */}
-        {subtaskCount > 0 && (
-          <ProgressCircle
-            total={subtaskCount}
-            completed={task.completedSubtasks || 0}
-            isCompleted={isCompleted}
-            isSelected={isSelected}
-            isOpen={isOpen}
-            size={20}
-          />
-        )}
-
-        {/* Checkbox */}
-        {subtaskCount === 0 && (
-          <button
-            onClick={handleCheckboxClick}
-            className={cn(
-              "flex shrink-0 items-center justify-center size-4 m-0.5 border-[1.5px] rounded transition-all duration-200 cursor-pointer",
-              isCompleted
-                ? "border-green-500 dark:border-green-400 text-white"
-                : isSelected
-                ? "border-blue-600 dark:border-blue-400 hover:border-blue-700 dark:hover:border-blue-300"
-                : "border-neutral-300 dark:border-neutral-600 hover:border-neutral-400 dark:hover:border-neutral-500"
-            )}
-          >
-            <Checkmark
-              isCompleted={isCompleted}
-              isSelected={isSelected}
-              isOpen={isOpen}
-            />
-          </button>
-        )}
+        {/* Due date picker */}
+        <DatePicker
+          value={task.dueDate.toISOString().split("T")[0]}
+          onChange={(newDate) => onTaskDueDateUpdate(task, newDate)}
+          isOverdue={isOverdue}
+          className="ms-1"
+        />
       </div>
     </div>
   );

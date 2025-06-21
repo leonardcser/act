@@ -230,26 +230,6 @@ export const useKeyboard = ({
     appState.selectAllTasksInColumn(taskOps.tasks, appState.focusedColumn);
   }, [appState, taskOps.tasks]);
 
-  const addTask = useCallback(() => {
-    if (!appState.newTaskName.trim()) return;
-
-    let parentTaskId: string | undefined;
-
-    // If task(s) are selected, add as subtask of the first selected task
-    if (appState.selectedTasks.size > 0) {
-      parentTaskId = Array.from(appState.selectedTasks)[0];
-    } else {
-      // If no task selected, add to the current column
-      parentTaskId = appState.columns[appState.selectedColumn]?.parentTaskId;
-    }
-
-    // Get date from selected filter
-    const taskDate = getDateFromFilter(selectedDateFilter);
-
-    taskOps.addTask(appState.newTaskName, parentTaskId, taskDate);
-    appState.closeModal();
-  }, [appState, taskOps, selectedDateFilter]);
-
   // Keyboard event handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -257,9 +237,6 @@ export const useKeyboard = ({
       if (appState.isModalOpen) {
         if (e.key === "Escape") {
           appState.closeModal();
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          addTask();
         }
         return;
       }
@@ -376,7 +353,6 @@ export const useKeyboard = ({
     reorderTaskHorizontal,
     deleteSelectedTasks,
     selectAllTasksInColumn,
-    addTask,
     appState,
     taskOps,
   ]);

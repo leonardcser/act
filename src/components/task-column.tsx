@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "../utils";
-import { Task, Column } from "../types";
+import { Task, Column, DateFilter } from "../types";
 import { TaskItem } from "./task-item";
 import { useDrag } from "../contexts/drag-context";
 
@@ -10,12 +10,14 @@ interface TaskColumnProps {
   tasks: Task[];
   selectedTasks: Set<string>;
   selectedColumn: number;
+  selectedDateFilter?: DateFilter;
   isTaskOpen: (taskId: string) => boolean;
   getSubtaskCount: (taskId: string) => number;
   getAllSubtasks: (taskId: string) => Task[];
   onColumnClick: (columnIndex: number, e: React.MouseEvent) => void;
   onTaskClick: (task: Task, columnIndex: number, e: React.MouseEvent) => void;
   onTaskUpdate: (task: Task, newName: string) => void;
+  onTaskDueDateUpdate: (task: Task, newDueDate: string) => void;
   onTaskToggle: (taskId: string) => void;
   onTaskDrop: (draggedTaskIds: string[], targetTaskId: string) => void;
   onColumnDrop: (draggedTaskIds: string[], targetColumnIndex: number) => void;
@@ -38,6 +40,7 @@ export function TaskColumn({
   onColumnClick,
   onTaskClick,
   onTaskUpdate,
+  onTaskDueDateUpdate,
   onTaskToggle,
   onTaskDrop,
   onColumnDrop,
@@ -278,6 +281,7 @@ export function TaskColumn({
                       openTaskIds={openTaskIds}
                       onTaskClick={onTaskClick}
                       onTaskUpdate={onTaskUpdate}
+                      onTaskDueDateUpdate={onTaskDueDateUpdate}
                       onTaskToggle={onTaskToggle}
                       onTaskDrop={onTaskDrop}
                       getAllSubtasks={getAllSubtasks}

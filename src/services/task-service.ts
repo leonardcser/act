@@ -4,10 +4,6 @@ import { generateDateFiltersFromDates } from "../utils/date";
 import { v4 as uuidv4 } from "uuid";
 
 export class TaskService {
-  private static sortTasks(tasks: Task[]): Task[] {
-    return tasks.sort((a, b) => a.order - b.order);
-  }
-
   private static convertDatabaseTask(dbTask: any): Task {
     return {
       id: dbTask.id,
@@ -17,7 +13,8 @@ export class TaskService {
       completedAt: dbTask.completed_at
         ? new Date(dbTask.completed_at)
         : undefined,
-      dateCreated: new Date(dbTask.date_created),
+      createdAt: new Date(dbTask.created_at),
+      dueDate: new Date(dbTask.due_date),
       order: dbTask.task_order,
       completedSubtasks: dbTask.completed_subtasks || 0,
     };
@@ -25,7 +22,11 @@ export class TaskService {
 
   private static async getAllTasks(): Promise<DatabaseTask[]> {
     const database = await DatabaseService.getConnection();
-    return await database.select(`
+    const today = new Date().toISOString().split("T")[0];
+    const startOfToday = `${today}T00:00:00.000Z`;
+
+    return await database.select(
+      `
       WITH RECURSIVE subtask_counts AS (
         SELECT 
           t.id,
@@ -41,19 +42,73 @@ export class TaskService {
         t.parent_id, 
         t.completed, 
         t.completed_at, 
-        t.date_created, 
+        t.created_at, 
+        t.due_date,
         t.task_order,
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
-      ORDER BY t.parent_id, t.task_order ASC
-    `);
+      WHERE (t.due_date >= $1 OR t.completed = 0)
+      ORDER BY 
+        CASE WHEN t.due_date < $1 AND t.completed = 0 THEN 0 ELSE 1 END,
+        t.parent_id, 
+        t.task_order ASC,
+        CASE WHEN t.due_date < $1 AND t.completed = 0 THEN t.due_date END DESC,
+        t.created_at ASC
+    `,
+      [startOfToday]
+    );
   }
 
   private static async getTasksByDate(
     startDate: string,
     endDate: string
   ): Promise<DatabaseTask[]> {
+    const database = await DatabaseService.getConnection();
+    const today = new Date().toISOString().split("T")[0];
+    const startOfToday = `${today}T00:00:00.000Z`;
+
+    return await database.select(
+      `
+      WITH RECURSIVE subtask_counts AS (
+        SELECT 
+          t.id,
+          COUNT(s.id) as total_subtasks,
+          SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
+        FROM tasks t
+        LEFT JOIN tasks s ON s.parent_id = t.id
+        GROUP BY t.id
+      )
+      SELECT 
+        t.id, 
+        t.name, 
+        t.parent_id, 
+        t.completed, 
+        t.completed_at, 
+        t.created_at, 
+        t.due_date,
+        t.task_order,
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+      FROM tasks t
+      LEFT JOIN subtask_counts sc ON t.id = sc.id
+      WHERE t.due_date >= $1 AND t.due_date <= $2
+      ORDER BY 
+        CASE WHEN t.due_date < $3 AND t.completed = 0 THEN 0 ELSE 1 END,
+        t.parent_id, 
+        t.task_order ASC,
+        CASE WHEN t.due_date < $3 AND t.completed = 0 THEN t.due_date END DESC,
+        t.created_at ASC
+    `,
+      [startDate, endDate, startOfToday]
+    );
+  }
+
+  private static async getTodaysTasks(): Promise<DatabaseTask[]> {
+    const today = new Date().toISOString().split("T")[0];
+    const startOfDay = `${today}T00:00:00.000Z`;
+    const endOfDay = `${today}T23:59:59.999Z`;
+
+    // Get today's tasks and incomplete overdue tasks (due before today)
     const database = await DatabaseService.getConnection();
     return await database.select(
       `
@@ -72,23 +127,22 @@ export class TaskService {
         t.parent_id, 
         t.completed, 
         t.completed_at, 
-        t.date_created, 
+        t.created_at, 
+        t.due_date,
         t.task_order,
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
       LEFT JOIN subtask_counts sc ON t.id = sc.id
-      WHERE t.date_created >= $1 AND t.date_created <= $2
-      ORDER BY t.parent_id, t.task_order ASC
+      WHERE (t.due_date >= $1 AND t.due_date <= $2) OR (t.due_date < $1 AND t.completed = 0)
+      ORDER BY 
+        CASE WHEN t.due_date < $1 AND t.completed = 0 THEN 0 ELSE 1 END,
+        t.parent_id, 
+        t.task_order ASC,
+        CASE WHEN t.due_date < $1 AND t.completed = 0 THEN t.due_date END DESC,
+        t.created_at ASC
     `,
-      [startDate, endDate]
+      [startOfDay, endOfDay]
     );
-  }
-
-  private static async getTodaysTasks(): Promise<DatabaseTask[]> {
-    const today = new Date().toISOString().split("T")[0];
-    const startOfDay = `${today}T00:00:00.000Z`;
-    const endOfDay = `${today}T23:59:59.999Z`;
-    return await this.getTasksByDate(startOfDay, endOfDay);
   }
 
   private static async getTasksForDate(date: Date): Promise<DatabaseTask[]> {
@@ -96,6 +150,54 @@ export class TaskService {
     const startOfDay = `${dateStr}T00:00:00.000Z`;
     const endOfDay = `${dateStr}T23:59:59.999Z`;
     return await this.getTasksByDate(startOfDay, endOfDay);
+  }
+
+  private static async getTomorrowsTasks(): Promise<DatabaseTask[]> {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+    const startOfDay = `${tomorrowStr}T00:00:00.000Z`;
+    const endOfDay = `${tomorrowStr}T23:59:59.999Z`;
+
+    // Get today's date for overdue cutoff
+    const today = new Date().toISOString().split("T")[0];
+    const startOfToday = `${today}T00:00:00.000Z`;
+
+    // Get tomorrow's tasks and incomplete overdue tasks (due before today)
+    const database = await DatabaseService.getConnection();
+    return await database.select(
+      `
+      WITH RECURSIVE subtask_counts AS (
+        SELECT 
+          t.id,
+          COUNT(s.id) as total_subtasks,
+          SUM(CASE WHEN s.completed = 1 THEN 1 ELSE 0 END) as completed_subtasks
+        FROM tasks t
+        LEFT JOIN tasks s ON s.parent_id = t.id
+        GROUP BY t.id
+      )
+      SELECT 
+        t.id, 
+        t.name, 
+        t.parent_id, 
+        t.completed, 
+        t.completed_at, 
+        t.created_at, 
+        t.due_date,
+        t.task_order,
+        COALESCE(sc.completed_subtasks, 0) as completed_subtasks
+      FROM tasks t
+      LEFT JOIN subtask_counts sc ON t.id = sc.id
+      WHERE (t.due_date >= $1 AND t.due_date <= $2) OR (t.due_date < $3 AND t.completed = 0)
+      ORDER BY 
+        CASE WHEN t.due_date < $3 AND t.completed = 0 THEN 0 ELSE 1 END,
+        t.parent_id, 
+        t.task_order ASC,
+        CASE WHEN t.due_date < $3 AND t.completed = 0 THEN t.due_date END DESC,
+        t.created_at ASC
+    `,
+      [startOfDay, endOfDay, startOfToday]
+    );
   }
 
   private static async getSubtasks(parentId: string): Promise<DatabaseTask[]> {
@@ -117,7 +219,8 @@ export class TaskService {
         t.parent_id, 
         t.completed, 
         t.completed_at, 
-        t.date_created, 
+        t.created_at, 
+        t.due_date,
         t.task_order,
         COALESCE(sc.completed_subtasks, 0) as completed_subtasks
       FROM tasks t
@@ -188,13 +291,14 @@ export class TaskService {
       dbTasks = await this.getAllTasks();
     } else {
       switch (dateFilter.type) {
+        case "all":
+          dbTasks = await this.getAllTasks();
+          break;
         case "today":
           dbTasks = await this.getTodaysTasks();
           break;
         case "tomorrow":
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          dbTasks = await this.getTasksForDate(tomorrow);
+          dbTasks = await this.getTomorrowsTasks();
           break;
         case "yesterday":
           const yesterday = new Date();
@@ -222,8 +326,7 @@ export class TaskService {
       }
     }
 
-    const convertedTasks = dbTasks.map(this.convertDatabaseTask);
-    return this.sortTasks(convertedTasks);
+    return dbTasks.map(this.convertDatabaseTask);
   }
 
   static async createTask(
@@ -247,19 +350,21 @@ export class TaskService {
       parent_id: parentId,
       completed: 0,
       completed_at: undefined,
-      date_created: taskDate,
+      created_at: new Date().toISOString(),
+      due_date: taskDate,
       task_order: max_order + 1,
     };
 
     await database.execute(
-      "INSERT INTO tasks (id, name, parent_id, completed, completed_at, date_created, task_order) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      "INSERT INTO tasks (id, name, parent_id, completed, completed_at, created_at, due_date, task_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
       [
         task.id,
         task.name,
         task.parent_id,
         task.completed,
         task.completed_at,
-        task.date_created,
+        task.created_at,
+        task.due_date,
         task.task_order,
       ]
     );
@@ -355,10 +460,14 @@ export class TaskService {
     parentId?: string,
     showCompleted = true
   ): Task[] {
-    return tasks
+    // Filter tasks by parent and completion status
+    const filteredTasks = tasks
       .filter((task) => task.parentId === parentId)
-      .filter((task) => showCompleted || !task.completed)
-      .sort((a, b) => a.order - b.order);
+      .filter((task) => showCompleted || !task.completed);
+
+    // Preserve the original order from the tasks array instead of sorting by order
+    // This maintains the overdue priority ordering from the database query
+    return filteredTasks;
   }
 
   static getTaskById(tasks: Task[], id: string): Task | undefined {
@@ -525,7 +634,7 @@ export class TaskService {
     // Update all specified tasks in one query
     const placeholders = idsArray.map(() => "?").join(", ");
     await database.execute(
-      `UPDATE tasks SET date_created = ? WHERE id IN (${placeholders})`,
+      `UPDATE tasks SET due_date = ? WHERE id IN (${placeholders})`,
       [dateStr, ...idsArray]
     );
 
@@ -540,7 +649,7 @@ export class TaskService {
     if (allSubtaskIds.length > 0) {
       const subtaskPlaceholders = allSubtaskIds.map(() => "?").join(", ");
       await database.execute(
-        `UPDATE tasks SET date_created = ? WHERE id IN (${subtaskPlaceholders})`,
+        `UPDATE tasks SET due_date = ? WHERE id IN (${subtaskPlaceholders})`,
         [dateStr, ...allSubtaskIds]
       );
     }
@@ -551,7 +660,7 @@ export class TaskService {
   ): Promise<DatabaseTask[]> {
     const database = await DatabaseService.getConnection();
     const directSubtasks = (await database.select(
-      "SELECT id, name, parent_id, completed, completed_at, date_created, task_order FROM tasks WHERE parent_id = $1",
+      "SELECT id, name, parent_id, completed, completed_at, created_at, due_date, task_order FROM tasks WHERE parent_id = $1",
       [taskId]
     )) as DatabaseTask[];
 
@@ -569,9 +678,9 @@ export class TaskService {
   static async getAllDistinctDates(): Promise<Date[]> {
     const database = await DatabaseService.getConnection();
 
-    // Get all distinct created dates
+    // Get all distinct due dates
     const dateRows = (await database.select(
-      `SELECT DISTINCT DATE(date_created) as date_str FROM tasks
+      `SELECT DISTINCT DATE(due_date) as date_str FROM tasks
        ORDER BY date_str DESC`
     )) as Array<{ date_str: string }>;
 
@@ -584,7 +693,7 @@ export class TaskService {
     const database = await DatabaseService.getConnection();
     const rows = (await database.select(
       `SELECT 
-        DATE(date_created) as date_str, 
+        DATE(due_date) as date_str, 
         COUNT(id) as total_count,
         SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed_count
        FROM tasks 

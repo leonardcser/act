@@ -7,7 +7,8 @@ export interface DatabaseTask {
   parent_id?: string;
   completed: number; // 0 for false, 1 for true in sqlite
   completed_at?: string;
-  date_created: string;
+  created_at: string;
+  due_date: string;
   task_order: number;
 }
 
