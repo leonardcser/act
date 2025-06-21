@@ -686,11 +686,11 @@ export class TaskService {
       allSubtaskIds.push(...subtasks.map((task) => task.id));
     }
 
-    // Update all subtasks in one query if there are any
+    // Update only non-completed subtasks in one query if there are any
     if (allSubtaskIds.length > 0) {
       const subtaskPlaceholders = allSubtaskIds.map(() => "?").join(", ");
       await database.execute(
-        `UPDATE tasks SET due_date = ? WHERE id IN (${subtaskPlaceholders})`,
+        `UPDATE tasks SET due_date = ? WHERE id IN (${subtaskPlaceholders}) AND completed = 0`,
         [dateStr, ...allSubtaskIds]
       );
     }
