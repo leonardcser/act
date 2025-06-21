@@ -5,12 +5,6 @@ import { useDrag } from "../contexts/drag-context";
 import { Checkmark } from "./checkmark";
 import { ProgressCircle } from "./progress-circle";
 import { DatePicker } from "./date-picker";
-import {
-  formatDateLabel,
-  isToday,
-  isTomorrow,
-  isYesterday,
-} from "../utils/date";
 
 interface TaskItemProps {
   task: Task;
@@ -61,46 +55,6 @@ export function TaskItem({
   const [isDragOver, setIsDragOver] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const isCompleted = task.completed;
-
-  // Format due date for display
-  const formatDueDate = (
-    dueDate: Date
-  ): { text: string; isOverdue: boolean; color: string } => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (isToday(dueDate)) {
-      return {
-        text: "Today",
-        isOverdue: false,
-        color: "text-blue-600 dark:text-blue-400",
-      };
-    } else if (isTomorrow(dueDate)) {
-      return {
-        text: "Tomorrow",
-        isOverdue: false,
-        color: "text-neutral-600 dark:text-neutral-400",
-      };
-    } else if (isYesterday(dueDate)) {
-      const isOverdue = !isCompleted;
-      return {
-        text: isOverdue ? "Overdue" : "Yesterday",
-        isOverdue,
-        color: isOverdue
-          ? "text-red-600 dark:text-red-400"
-          : "text-neutral-600 dark:text-neutral-400",
-      };
-    } else {
-      const isOverdue = dueDate < today && !isCompleted;
-      return {
-        text: isOverdue ? "Overdue" : formatDateLabel(dueDate),
-        isOverdue,
-        color: isOverdue
-          ? "text-red-600 dark:text-red-400"
-          : "text-neutral-600 dark:text-neutral-400",
-      };
-    }
-  };
 
   // Calculate if the task is overdue
   const isOverdue = React.useMemo(() => {

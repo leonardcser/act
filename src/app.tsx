@@ -23,7 +23,6 @@ function App() {
       reorderTasks: taskManager.reorderTasks,
       moveTasksToParent: taskManager.moveTasksToParent,
     },
-    selectedDateFilter: taskManager.selectedDateFilter,
   });
 
   // Event handlers
